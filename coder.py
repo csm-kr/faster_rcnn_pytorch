@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from math import sqrt
 from abc import ABCMeta, abstractmethod
-from config import device
 # from util.utils import cxcy_to_xy, xy_to_cxcy, find_jaccard_overlap
 from utils import find_jaccard_overlap, xy_to_cxcy, xy_to_cxcy2
 from anchor import FasterRCNN_Anchor
@@ -49,11 +48,11 @@ class FasterRCNN_Coder(Coder):
             self.anchor_dic[size] = self.anchor_obj.create_anchors(image_size=size)
         self.center_anchor = self.anchor_dic[size]
 
-    def assign_anchors_to_device(self):
-        self.center_anchor = self.center_anchor.to(device)
-
-    def assign_anchors_to_cpu(self):
-        self.center_anchor = self.center_anchor.to('cpu')
+    # def assign_anchors_to_device(self):
+    #     self.center_anchor = self.center_anchor.to(device)
+    #
+    # def assign_anchors_to_cpu(self):
+    #     self.center_anchor = self.center_anchor.to('cpu')
 
     def encode(self, cxcy):
         """
@@ -88,6 +87,7 @@ class FasterRCNN_Coder(Coder):
             # zero of anchor_identifier convert to -1 except 256 - num_pos_anchors
             num_neg_sample = num_samples - num_positive_anchors
 
+            # sample 256 - num_pos_anchors from negative anchors
             negative_indices = torch.arange(anchor_identifier.size(0))[negative_indices_bool]
             perm = torch.randperm(negative_indices.size(0))
             anchor_identifier[negative_indices[perm[num_neg_sample:]]] = -1
@@ -106,9 +106,7 @@ class FasterRCNN_Coder(Coder):
 
         return anchor_identifier
 
-
-    # IT - IoU Threshold == 0.5
-    def build_target(self, gt_boxes, gt_labels, IT=None):
+    def build_target(self, gt_boxes, gt_labels):
         """
         gt_boxes : [B, ]
         gt_labels : [B, ]
@@ -232,7 +230,9 @@ if __name__ == '__main__':
                               batch_size=1,
                               shuffle=True,
                               collate_fn=train_set.collate_fn)
+
     coder = FasterRCNN_Coder()
+
     for images, boxes, labels in train_loader:
         images = images.to('cuda')
         boxes = [b.to('cuda') for b in boxes]
