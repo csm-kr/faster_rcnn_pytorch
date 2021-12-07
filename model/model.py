@@ -14,6 +14,7 @@ class RPN(nn.Module):
 
     def forward(self, x):
         x = self.conv_layers(x)
+        print(x.size())
         x = self.intermediate_layer(x)
         cls = self.box_classification_layer(x)
         reg = self.box_regression_layer(x)
@@ -21,7 +22,7 @@ class RPN(nn.Module):
 
 
 if __name__ == '__main__':
-    img = torch.randn([2, 3, 600, 1000])
+    img = torch.randn([2, 3, 600, 1000])  # 37, 62
     rpn = RPN(conv_layers=vgg16_bn(pretrained=True))
     cls, reg = rpn(img)
 

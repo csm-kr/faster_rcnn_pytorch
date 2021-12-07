@@ -1,0 +1,36 @@
+train:
+  lr: 0.001
+  epoch: 200
+  batch_size: 1
+  port: 8097
+  device:
+    - 0
+    - 1
+  save_file_name: './saves/faster_rcnn.pth.tar'
+
+test:
+  epoch: 10
+  batch_size: 1
+  port: 8097
+  device:
+    - 0
+    - 1
+  save_file_name: './saves/faster_rcnn.pth.tar'
+
+data:
+  root: 'D:\data\\voc'
+  # root: 'D:\data\coco'
+  data_type: 'voc'
+  size:
+    - 600
+    - 1000
+  batch_size: 1
+  num_workers: 2
+  visualization: True
+
+
+model:
+  model_name: 'rpn'
+  # model_name: 'faster_rcnn'
+
+
