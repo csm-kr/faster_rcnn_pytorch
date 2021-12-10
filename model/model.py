@@ -5,7 +5,7 @@ from torchvision.models import vgg16_bn
 
 
 class RPN(nn.Module):
-    def __init__(self, conv_layers, num_anchors=9):
+    def __init__(self, conv_layers=vgg16_bn(pretrained=True), num_anchors=9):
         super().__init__()
         self.conv_layers = nn.Sequential(*list(conv_layers.features.children())[:-1])  # after conv 5_3
         self.intermediate_layer = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
@@ -23,7 +23,7 @@ class RPN(nn.Module):
 
 if __name__ == '__main__':
     img = torch.randn([2, 3, 600, 1000])  # 37, 62
-    rpn = RPN(conv_layers=vgg16_bn(pretrained=True))
+    rpn = RPN()
     cls, reg = rpn(img)
 
     print(cls.size())

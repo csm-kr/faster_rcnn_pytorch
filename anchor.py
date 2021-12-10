@@ -50,7 +50,7 @@ class FasterRCNN_Anchor(object):
         keep = ((corner_anchors[:, 0] >= 0) & (corner_anchors[:, 1] >= 0) \
                 & (corner_anchors[:, 2] < 1) & (corner_anchors[:, 3] < 1))
 
-        center_anchors = center_anchors[keep]
+        # center_anchors = center_anchors[keep]
         # At (600, 1000) image has 20646 all anchors but the number of cross-boundary anchors is 7652.
 
         visualization = False
@@ -89,7 +89,7 @@ class FasterRCNN_Anchor(object):
                                               ))
             plt.show()
 
-        return center_anchors
+        return center_anchors, keep
 
     # def generate_anchors(self, image_size, num_pooling=4):
     #

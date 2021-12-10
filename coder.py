@@ -46,7 +46,7 @@ class FasterRCNN_Coder(Coder):
     def set_anchors(self, size):
         if self.anchor_dic.get(size) is None:
             self.anchor_dic[size] = self.anchor_obj.create_anchors(image_size=size)
-        self.center_anchor = self.anchor_dic[size]
+        self.center_anchor, self.keep = self.anchor_dic[size]
 
     # def assign_anchors_to_device(self):
     #     self.center_anchor = self.center_anchor.to(device)
@@ -113,14 +113,21 @@ class FasterRCNN_Coder(Coder):
         """
 
         batch_size = len(gt_labels)
-        n_priors = self.center_anchor.size(0)
+        num_anchors = self.center_anchor.size(0)
         device_ = gt_labels[0].get_device()
+        self.center_anchor = self.center_anchor.to(device_)
+        self.keep = self.keep.to(device_)
 
         # ----- 1. make container
-        gt_locations = torch.zeros((batch_size, n_priors, 4), dtype=torch.float, device=device_)
-        gt_classes = -1 * torch.ones((batch_size, n_priors, self.num_classes), dtype=torch.float, device=device_)
+        # gt_boxes  - [B, anchors, 4]
+        gt_locations = torch.zeros((batch_size, num_anchors, 4), dtype=torch.float, device=device_)
 
-        anchor_identifier = -1 * torch.ones((batch_size, n_priors), dtype=torch.float32, device=device_)
+        # foreground vs background - [B, anchors, 2]
+        gt_classes = torch.zeros((batch_size, num_anchors, 2), dtype=torch.float, device=device_)
+        # gt_classes = -1 * torch.ones((batch_size, n_priors, self.num_classes), dtype=torch.float, device=device_)
+
+        anchor_identifier = -1 * torch.ones((batch_size, num_anchors), dtype=torch.float32, device=device_)
+
         # if anchor is positive -> 1,
         #              negative -> 0,
         #              ignore   -> -1
@@ -140,7 +147,7 @@ class FasterRCNN_Coder(Coder):
             # ----- 4. build gt_classes
             # [1] third condition - negative anchors
             negative_indices = IoU_max < 0.3
-            gt_classes[i][negative_indices, :] = 0
+            gt_classes[i][negative_indices, 0] = 1
             anchor_identifier[i][negative_indices] = 0
 
             # [2] second condition - positive anchors (iou > 0.7)
@@ -152,9 +159,10 @@ class FasterRCNN_Coder(Coder):
             positive_indices = positive_indices.type(torch.bool)
 
             # assigning label
-            argmax_labels = labels[IoU_argmax]
-            gt_classes[i][positive_indices, :] = 0
-            gt_classes[i][positive_indices, argmax_labels[positive_indices].long()] = 1.  # objects
+            # argmax_labels = labels[IoU_argmax]
+            gt_classes[i][positive_indices, 1] = 1
+            # gt_classes[i][positive_indices, argmax_labels[positive_indices].long()] = 1.  # objects
+
             anchor_identifier[i][positive_indices] = 1                                    # original masking \in {0, 1}
 
             # ----- 4. build gt_locations
@@ -163,6 +171,9 @@ class FasterRCNN_Coder(Coder):
             gt_tcxcywh = self.encode(center_locations)
             gt_locations[i] = gt_tcxcywh
 
+            negative_ones = -1 * torch.ones((batch_size, num_anchors), dtype=torch.float32, device=device_)
+            # remove border-sides anchors.
+            anchor_identifier[i] = torch.where(self.keep, anchor_identifier[i], negative_ones[i])
             # sample 256 anchors which ratio is 1:1
             anchor_identifier[i] = self.sample_anchors(anchor_identifier[i])
 
