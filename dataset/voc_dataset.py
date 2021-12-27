@@ -255,17 +255,19 @@ if __name__ == "__main__":
     # train_transform
     ubuntu_root = "/home/cvmlserver3/Sungmin/data/voc"
     window_root = 'D:\data\\voc'
+    # for test
+    window_root = r'C:\Users\csm81\Desktop\\voc_temp'
     root = window_root
 
     transform_train = det_transforms.DetCompose([
         # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomPhotoDistortion(),
+        # det_transforms.DetRandomPhotoDistortion(),
         det_transforms.DetRandomHorizontalFlip(),
         det_transforms.DetToTensor(),
         # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomZoomOut(max_scale=3),
-        det_transforms.DetRandomZoomIn(),
-        det_transforms.DetResize(size=(416, 416), box_normalization=True),
+        # det_transforms.DetRandomZoomOut(max_scale=3),
+        # det_transforms.DetRandomZoomIn(),
+        det_transforms.DetResize(size=600, max_size=1333, box_normalization=True),
         det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
                                     std=[0.229, 0.224, 0.225])
     ])
@@ -278,8 +280,8 @@ if __name__ == "__main__":
     ])
 
     train_set = VOC_Dataset(root,
-                            split='test',
-                            download=True,
+                            split='train',
+                            download=False,
                             transform=transform_train,
                             visualization=True)
 
@@ -296,8 +298,9 @@ if __name__ == "__main__":
         boxes = data[1]
         labels = data[2]
 
-        images = images.to(device)
-        boxes = [b.to(device) for b in boxes]
-        labels = [l.to(device) for l in labels]
-        print(labels)
+        # images = images.to(device)
+        # boxes = [b.to(device) for b in boxes]
+        # labels = [l.to(device) for l in labels]
+        print(i)
+        # print(labels)
 

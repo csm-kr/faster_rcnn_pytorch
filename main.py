@@ -5,6 +5,8 @@ from dataset.build import build_dataset
 from coder import FasterRCNN_Coder
 from model.build import build_model
 from loss.build import build_loss
+from train import train
+from torch.optim.lr_scheduler import MultiStepLR
 
 
 def main_worker():
@@ -29,11 +31,36 @@ def main_worker():
 
     # 5. model
     model = build_model(model_config)
+    model = model.to(device)
 
     # 6. loss
-    # 6 - 1 ) coder
     coder = FasterRCNN_Coder()
-    loss = build_loss(model_config)
+    criterion = build_loss(model_config, coder)
+
+    # 7. optimizer
+    optimizer = torch.optim.SGD(params=model.parameters(),
+                                lr=train_config['lr'],
+                                momentum=0.9,
+                                weight_decay=train_config['weight_decay'])
+
+    # 8. scheduler
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[50, 100], gamma=0.1)   # 8, 11
+
+    # for statement
+    for epoch in range(train_config['start_epoch'], train_config['epoch']):
+
+        # 9. training
+        train(epoch=epoch,
+              device=device,
+              vis=vis,
+              train_loader=train_loader,
+              model=model,
+              criterion=criterion,
+              optimizer=optimizer,
+              scheduler=scheduler,
+              opts=train_config)
+
+        # 10. test/evaluation
 
 
 if __name__ == '__main__':

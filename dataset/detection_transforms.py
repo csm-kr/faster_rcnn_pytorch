@@ -24,6 +24,13 @@ def detection_resize(image,
     h = image.size(1)
     w = image.size(2)
 
+    # get aspect ratio.
+    min_size_ = float(min((h, w)))
+    max_size_ = float(max((h, w)))
+    aspect_ratio = max_size_ / min_size_
+    if aspect_ratio > 3:
+        print(aspect_ratio)
+
     # 2. get resize size
     if isinstance(size, (list, tuple)):
         size = size

@@ -2,12 +2,26 @@ import torch
 import torch.nn as nn
 
 
+class SmoothL1Loss(nn.Module):
+    def __init__(self, beta=1.):
+        super().__init__()
+        self.beta = beta
+
+    def forward(self, pred, target):
+        x = (pred - target).abs()
+        l1 = x - 0.5 * self.beta
+        l2 = 0.5 * x ** 2 / self.beta
+        return torch.where(x >= self.beta, l1, l2)
+
+
 class RPNLoss(torch.nn.Module):
     def __init__(self, coder):
         super().__init__()
         self.coder = coder
         self.num_classes = self.coder.num_classes
         self.bce = nn.BCELoss(reduction='none')
+        self.smooth_l1_loss = nn.SmoothL1Loss(reduction='none')
+        # self.smooth_l1_loss = SmoothL1Loss()
 
     def forward(self, pred, boxes, labels, size):
         pred_cls, pred_reg = pred
@@ -17,8 +31,6 @@ class RPNLoss(torch.nn.Module):
         pred_reg = pred_reg.permute(0, 2, 3, 1)  # [B, C, H, W] to [B, H, W, C]
         pred_cls = pred_cls.reshape(batch_size, -1, 2)
         pred_reg = pred_reg.reshape(batch_size, -1, 4)
-
-        # Q ) view 가 되는 자연스러운
 
         print(pred_cls.size())
         print(pred_reg.size())
@@ -31,19 +43,22 @@ class RPNLoss(torch.nn.Module):
         cls_loss = (cls_loss * cls_mask).sum() / N_cls
 
         reg_mask = (anchor_identifier == 1).unsqueeze(-1).expand_as(gt_t_reg)       # [B, num_anchors, 4]
-        N_reg = gt_t_reg.size(1) // 9     # number of anchor location - H' x W' == num_anchors // 9
+        N_reg = gt_t_reg.size(1) // 9   # number of anchor location - H' x W' == num_anchors // 9 - divided into (anchor scales times aspect ratio).
         lambda_ = 10
+        # loc loss
+        reg_loss = self.smooth_l1_loss(pred_reg, gt_t_reg)
+        reg_loss = lambda_ * (reg_mask * reg_loss).sum() / N_reg
+        total_loss = cls_loss + reg_loss
 
         # gt_t_classes      - [B, num_anchors, 2]
         # gt_t_boxes        - [B, num_anchors, 4]
         # anchor_identifier - [B, num_anchors   ] each value \in {-1, 0, 1} which -1 ignore, 0 negative, 1 positive
 
-        print(anchor_identifier.size())
-        print(gt_t_cls.size())
-        print(pred_cls.size())
+        # print(anchor_identifier.size())
+        # print(gt_t_cls.size())
+        # print(pred_cls.size())
 
-
-        return 0
+        return total_loss, cls_loss, reg_loss
 
 
 if __name__ == '__main__':
@@ -59,12 +74,12 @@ if __name__ == '__main__':
 
     transform_train = det_transforms.DetCompose([
         # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomPhotoDistortion(),
+        # det_transforms.DetRandomPhotoDistortion(),
         det_transforms.DetRandomHorizontalFlip(),
         det_transforms.DetToTensor(),
         # ------------- for Tensor augmentation -------------
-        det_transforms.DetRandomZoomOut(max_scale=3),
-        det_transforms.DetRandomZoomIn(),
+        # det_transforms.DetRandomZoomOut(max_scale=3),
+        # det_transforms.DetRandomZoomIn(),
         det_transforms.DetResize(size=600, max_size=1000, box_normalization=True),
         det_transforms.DetNormalize(mean=[0.485, 0.456, 0.406],
                                     std=[0.229, 0.224, 0.225])
@@ -101,3 +116,4 @@ if __name__ == '__main__':
         size = (height, width)
         pred = model(images)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
         loss = criterion(pred, boxes, labels, size)
+        print(loss)

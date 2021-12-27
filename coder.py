@@ -72,9 +72,9 @@ class FasterRCNN_Coder(Coder):
 
     def sample_anchors(self, anchor_identifier, num_samples=256):
 
-        positive_indices = anchor_identifier == 1
+        positive_indices_bool = anchor_identifier == 1
         negative_indices_bool = anchor_identifier == 0
-        num_positive_anchors = positive_indices.sum()
+        num_positive_anchors = positive_indices_bool.sum()
         num_negative_anchors = negative_indices_bool.sum()
 
         print("whole anchors : ", anchor_identifier.size(0))
@@ -82,7 +82,7 @@ class FasterRCNN_Coder(Coder):
         print("num negative anchors : ", (anchor_identifier==0).sum())
         print("num ignored anchors : ", (anchor_identifier==-1).sum())
 
-        print(positive_indices.size())
+        print(positive_indices_bool.size())
         if num_positive_anchors < num_samples//2:   # if pos anchors are smaller than 128,
             # zero of anchor_identifier convert to -1 except 256 - num_pos_anchors
             num_neg_sample = num_samples - num_positive_anchors
@@ -95,14 +95,22 @@ class FasterRCNN_Coder(Coder):
             assert (anchor_identifier == 0).sum() == num_neg_sample
 
         else:
+            # if pos anchors are larger than 128, sample 128 and background 128 patches.
 
-            # pos sanpme 을 128 로 맞춤
+            # pos sample 을 128 로 맞춤
             num_pos_sample = num_samples//2
             num_neg_sample = num_samples//2
 
-            positive_indices_np = positive_indices.numpy()
-            np.random.choice(positive_indices_np)
-            # sampling 해야함.
+            positive_indices = torch.arange(anchor_identifier.size(0))[positive_indices_bool]
+            perm_pos = torch.randperm(positive_indices.size(0))
+            anchor_identifier[positive_indices[perm_pos[num_pos_sample:]]] = -1
+
+            negative_indices = torch.arange(anchor_identifier.size(0))[negative_indices_bool]
+            perm_neg = torch.randperm(negative_indices.size(0))
+            anchor_identifier[negative_indices[perm_neg[num_neg_sample:]]] = -1
+
+            # sanity check
+            assert (anchor_identifier == 0).sum() == (anchor_identifier == 1).sum()
 
         return anchor_identifier
 
@@ -161,9 +169,9 @@ class FasterRCNN_Coder(Coder):
             # assigning label
             # argmax_labels = labels[IoU_argmax]
             gt_classes[i][positive_indices, 1] = 1
-            # gt_classes[i][positive_indices, argmax_labels[positive_indices].long()] = 1.  # objects
+            # gt_classes[i][positive_indices, argmax_labels[positive_indices].long()] = 1. # objects
 
-            anchor_identifier[i][positive_indices] = 1                                    # original masking \in {0, 1}
+            anchor_identifier[i][positive_indices] = 1                                     # original masking \in {0, 1}
 
             # ----- 4. build gt_locations
             argmax_locations = boxes[IoU_argmax]
@@ -172,7 +180,15 @@ class FasterRCNN_Coder(Coder):
             gt_locations[i] = gt_tcxcywh
 
             negative_ones = -1 * torch.ones((batch_size, num_anchors), dtype=torch.float32, device=device_)
-            # remove border-sides anchors.
+            # remove border-sides anchors. keep : cross-boundary anchors
+
+            if self.keep.sum() < 256:
+                keep_indices = torch.arange(self.keep.size(0))[self.keep == 0]
+                perm = torch.randperm(keep_indices.size(0))
+                self.keep[keep_indices[perm[:256]]] = True
+
+            self.keep = torch.logical_or(self.keep, anchor_identifier[i]==1)
+
             anchor_identifier[i] = torch.where(self.keep, anchor_identifier[i], negative_ones[i])
             # sample 256 anchors which ratio is 1:1
             anchor_identifier[i] = self.sample_anchors(anchor_identifier[i])

@@ -23,6 +23,7 @@ class RPN(nn.Module):
 
 if __name__ == '__main__':
     img = torch.randn([2, 3, 600, 1000])  # 37, 62
+    img = torch.randn([2, 3, 800, 800])  # 37, 62
     rpn = RPN()
     cls, reg = rpn(img)
 
