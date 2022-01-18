@@ -256,7 +256,7 @@ if __name__ == "__main__":
     ubuntu_root = "/home/cvmlserver3/Sungmin/data/voc"
     window_root = 'D:\data\\voc'
     # for test
-    window_root = r'C:\Users\csm81\Desktop\\voc_temp'
+    # window_root = r'C:\Users\csm81\Desktop\\voc_temp'
     root = window_root
 
     transform_train = det_transforms.DetCompose([

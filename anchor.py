@@ -16,9 +16,6 @@ class FasterRCNN_Anchor(object):
             feature_height = feature_height // 2
             feature_width = feature_width // 2
 
-        print(feature_height)
-        print(feature_width)
-
         areas = [128, 256, 512]
         aspect_ratios = np.array([0.5, 1.0, 2.0])
         center_anchors = []
@@ -90,34 +87,6 @@ class FasterRCNN_Anchor(object):
             plt.show()
 
         return center_anchors, keep
-
-    # def generate_anchors(self, image_size, num_pooling=4):
-    #
-    #     print('make retina anchors')
-    #     # get height and width of features
-    #     image_height, image_width = size = image_size  # h, w
-    #     feature_height, feature_width = image_height, image_width
-    #     for i in range(num_pooling):
-    #         feature_height = feature_height // 2
-    #         feature_width = feature_width // 2
-    #     print(feature_height)
-    #     print(feature_width)
-    #     areas = [128, 256, 512]
-    #     aspect_ratios = np.array([0.5, 1.0, 2.0])
-    #     center_anchors = []
-    #
-    #     grid_arange = np.arange(grid_size)
-    #     xx, yy = np.meshgrid(grid_arange, grid_arange)  # + 0.5  # grid center, [fmsize*fmsize,2]
-    #     m_grid = np.concatenate([np.expand_dims(xx, axis=-1), np.expand_dims(yy, -1)], axis=-1) + 0.5
-    #     m_grid = m_grid
-    #     xy = torch.from_numpy(m_grid)
-    #
-    #     anchors_wh = np.array(anchors_wh)  # numpy 로 변경
-    #     wh = torch.from_numpy(anchors_wh)
-    #
-    #     xy = xy.view(grid_size, grid_size, 1, 2).expand(grid_size, grid_size, 5, 2).type(torch.float32)  # centor
-    #     wh = wh.view(1, 1, 5, 2).expand(grid_size, grid_size, 5, 2).type(torch.float32)  # w, h
-    #     center_anchors = torch.cat([xy, wh], dim=3).to(device)
 
 
 if __name__ == '__main__':

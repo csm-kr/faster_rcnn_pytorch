@@ -56,7 +56,7 @@ def build_dataset(data_config):
                                   num_workers=data_config['num_workers'],
                                   pin_memory=True)
 
-        test_loader = DataLoader(train_set,
+        test_loader = DataLoader(test_set,
                                  batch_size=1,
                                  collate_fn=test_set.collate_fn,
                                  shuffle=False,

@@ -77,12 +77,6 @@ class FasterRCNN_Coder(Coder):
         num_positive_anchors = positive_indices_bool.sum()
         num_negative_anchors = negative_indices_bool.sum()
 
-        print("whole anchors : ", anchor_identifier.size(0))
-        print("num positive anchors : ", (anchor_identifier==1).sum())
-        print("num negative anchors : ", (anchor_identifier==0).sum())
-        print("num ignored anchors : ", (anchor_identifier==-1).sum())
-
-        print(positive_indices_bool.size())
         if num_positive_anchors < num_samples//2:   # if pos anchors are smaller than 128,
             # zero of anchor_identifier convert to -1 except 256 - num_pos_anchors
             num_neg_sample = num_samples - num_positive_anchors
@@ -269,13 +263,6 @@ if __name__ == '__main__':
         size = (height, width)
         coder.set_anchors(size=size)
         gt_t_classes, gt_t_boxes, anchor_identifier = coder.build_target(boxes, labels)
-
-        print(gt_t_classes.size())
-        print(gt_t_boxes.size())
-        print(anchor_identifier.size())
-
-        print("num positive anchors : ", (anchor_identifier==1).sum())
-        print("num negative anchors : ", (anchor_identifier==0).sum())
 
 
     # image, box, label = train_set.__getitem__(10)

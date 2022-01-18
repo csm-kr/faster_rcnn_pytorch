@@ -192,3 +192,24 @@ def detect(pred, coder, opts, device, max_overlap=0.5, top_k=300, is_demo=False)
         image_labels = image_labels[sort_ind][:top_k]  # (top_k)
 
     return image_boxes, image_labels, image_scores  # lists of length batch_size
+
+
+def propose_region(pred, coder):
+    pred_cls, pred_reg = pred
+    batch_size = pred_cls.size(0)
+
+    pred_cls = pred_cls.permute(0, 2, 3, 1)  # [B, C, H, W] to [B, H, W, C]
+    pred_reg = pred_reg.permute(0, 2, 3, 1)  # [B, C, H, W] to [B, H, W, C]
+    pred_cls = pred_cls.reshape(batch_size, -1, 2)
+    pred_reg = pred_reg.reshape(batch_size, -1, 4)
+
+    top_k = 100
+    pred_bboxes, pred_scores = coder.post_processing([pred_cls, pred_reg])
+    pred_scores = torch.sigmoid(pred_scores)
+
+    sorted_scores, sorted_idx_scores = pred_scores[..., 1].squeeze().sort(descending=True)
+    sorted_boxes = pred_bboxes[sorted_idx_scores[:top_k]]
+
+    # print(sorted_scores[:2000].size())
+    # print(sorted_boxes.size())
+    return sorted_boxes

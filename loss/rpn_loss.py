@@ -32,8 +32,6 @@ class RPNLoss(torch.nn.Module):
         pred_cls = pred_cls.reshape(batch_size, -1, 2)
         pred_reg = pred_reg.reshape(batch_size, -1, 4)
 
-        print(pred_cls.size())
-        print(pred_reg.size())
         self.coder.set_anchors(size=size)
         gt_t_cls, gt_t_reg, anchor_identifier = self.coder.build_target(boxes, labels)
 
