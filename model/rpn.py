@@ -14,7 +14,6 @@ class RPN(nn.Module):
 
     def forward(self, x):
         x = self.conv_layers(x)
-        print(x.size())
         x = self.intermediate_layer(x)
         cls = self.box_classification_layer(x)
         reg = self.box_regression_layer(x)
