@@ -203,13 +203,22 @@ def propose_region(pred, coder):
     pred_cls = pred_cls.reshape(batch_size, -1, 2)
     pred_reg = pred_reg.reshape(batch_size, -1, 4)
 
-    top_k = 100
+    # RPN의 결과를 nms 를 통해 2000개로 나타내는 부분
+    pre_nms_top_k = 12000
+
     pred_bboxes, pred_scores = coder.post_processing([pred_cls, pred_reg])
     pred_scores = torch.sigmoid(pred_scores)
 
     sorted_scores, sorted_idx_scores = pred_scores[..., 1].squeeze().sort(descending=True)
-    sorted_boxes = pred_bboxes[sorted_idx_scores[:top_k]]
+    sorted_boxes = pred_bboxes[sorted_idx_scores[:pre_nms_top_k]]   # [12000, 4]
+    sorted_scores = sorted_scores[:pre_nms_top_k]                   # [12000]
 
+    keep_idx = torchvision_nms(boxes=sorted_boxes, scores=sorted_scores, iou_threshold=0.7)
+    keep_ = torch.zeros(pre_nms_top_k, dtype=torch.bool)
+    keep_[keep_idx] = 1  # int64 to bool
+    keep = keep_
+
+    sorted_boxes = sorted_boxes[keep][:2000]
     # print(sorted_scores[:2000].size())
     # print(sorted_boxes.size())
     return sorted_boxes

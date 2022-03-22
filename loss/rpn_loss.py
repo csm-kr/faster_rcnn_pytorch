@@ -51,11 +51,6 @@ class RPNLoss(torch.nn.Module):
         # gt_t_classes      - [B, num_anchors, 2]
         # gt_t_boxes        - [B, num_anchors, 4]
         # anchor_identifier - [B, num_anchors   ] each value \in {-1, 0, 1} which -1 ignore, 0 negative, 1 positive
-
-        # print(anchor_identifier.size())
-        # print(gt_t_cls.size())
-        # print(pred_cls.size())
-
         return total_loss, cls_loss, reg_loss
 
 

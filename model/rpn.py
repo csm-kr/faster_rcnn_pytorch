@@ -9,14 +9,14 @@ class RPN(nn.Module):
         super().__init__()
         self.conv_layers = nn.Sequential(*list(conv_layers.features.children())[:-1])  # after conv 5_3
         self.intermediate_layer = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
-        self.box_classification_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 2, kernel_size=1)
-        self.box_regression_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 4, kernel_size=1)
+        self.reg_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 2, kernel_size=1)
+        self.cls_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 4, kernel_size=1)
 
     def forward(self, x):
         x = self.conv_layers(x)
         x = self.intermediate_layer(x)
-        cls = self.box_classification_layer(x)
-        reg = self.box_regression_layer(x)
+        cls = self.cls_layer(x)
+        reg = self.reg_layer(x)
         return cls, reg
 
 
