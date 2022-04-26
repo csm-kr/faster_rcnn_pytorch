@@ -253,7 +253,7 @@ if __name__ == "__main__":
     import dataset.detection_transforms as det_transforms
 
     # train_transform
-    ubuntu_root = "/home/cvmlserver3/Sungmin/data/voc"
+    # ubuntu_root = "/home/cvmlserver3/Sungmin/data/voc"
     window_root = 'D:\data\\voc'
     # for test
     # window_root = r'C:\Users\csm81\Desktop\\voc_temp'
@@ -291,6 +291,8 @@ if __name__ == "__main__":
                                                shuffle=False,
                                                num_workers=0,
                                                pin_memory=True)
+
+    print(len(train_loader))
 
     for i, data in enumerate(train_loader):
 
