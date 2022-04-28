@@ -181,7 +181,7 @@ class FasterRCNN_Coder(Coder):
                 perm = torch.randperm(keep_indices.size(0))
                 self.keep[keep_indices[perm[:256]]] = True
 
-            self.keep = torch.logical_or(self.keep, anchor_identifier[i]==1)
+            self.keep = torch.logical_or(self.keep, anchor_identifier[i] == 1)
 
             anchor_identifier[i] = torch.where(self.keep, anchor_identifier[i], negative_ones[i])
             # sample 256 anchors which ratio is 1:1
