@@ -27,11 +27,13 @@ class RPN(nn.Module):
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
 
-    def forward(self, x):
+    def forward(self, x, frcnn_train=False):
         x = self.conv_layers(x)
         x = self.intermediate_layer(x)
         cls = self.cls_layer(x)
         reg = self.reg_layer(x)
+        if frcnn_train:
+             return cls, reg, x
         return cls, reg
 
 
