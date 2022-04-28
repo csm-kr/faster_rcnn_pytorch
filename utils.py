@@ -194,7 +194,7 @@ def detect(pred, coder, opts, device, max_overlap=0.5, top_k=300, is_demo=False)
     return image_boxes, image_labels, image_scores  # lists of length batch_size
 
 
-def propose_region(pred, coder):
+def propose_region(pred, coder, mode='train'):
     pred_cls, pred_reg = pred
     batch_size = pred_cls.size(0)
 
@@ -204,7 +204,14 @@ def propose_region(pred, coder):
     pred_reg = pred_reg.reshape(batch_size, -1, 4)
 
     # RPN의 결과를 nms 를 통해 2000개로 나타내는 부분
+
+    # refer to
+    # https://github.com/bubbliiiing/faster-rcnn-pytorch/blob/8e1470752bea284f651815c919720982319c4aa9/nets/rpn.py#L18
     pre_nms_top_k = 12000
+    post_num_top_k = 2000
+    if mode == 'test':
+        pre_nms_top_k = 3000
+        post_num_top_k = 300
 
     pred_bboxes, pred_scores = coder.post_processing([pred_cls, pred_reg])
     pred_scores = torch.sigmoid(pred_scores)
@@ -218,7 +225,6 @@ def propose_region(pred, coder):
     keep_[keep_idx] = 1  # int64 to bool
     keep = keep_
 
-    sorted_boxes = sorted_boxes[keep][:2000]
-    # print(sorted_scores[:2000].size())
-    # print(sorted_boxes.size())
+    sorted_boxes = sorted_boxes[keep][:post_num_top_k]
+
     return sorted_boxes
