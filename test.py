@@ -6,7 +6,6 @@ from matplotlib.patches import Rectangle
 from utils import propose_region
 
 
-
 def test(epoch, device, vis, test_loader, model, criterion, optimizer, scheduler, opts):
 
     # 1. load .pth
@@ -64,6 +63,7 @@ def test(epoch, device, vis, test_loader, model, criterion, optimizer, scheduler
             plt.imshow(image_np)
 
             for i in range(len(bbox)):
+            # for i in range(len(bbox[:10])):
                 x1 = bbox[i][0]
                 y1 = bbox[i][1]
                 x2 = bbox[i][2]
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     coder = FasterRCNN_Coder()
     criterion = build_loss(model_config, coder)
 
-    test(epoch=30,
+    test(epoch=3,
          device=device,
          vis=None,
          test_loader=test_loader,

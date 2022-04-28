@@ -44,7 +44,7 @@ def main_worker():
                                 weight_decay=train_config['weight_decay'])
 
     # 8. scheduler
-    scheduler = MultiStepLR(optimizer=optimizer, milestones=[2], gamma=0.1)   # 8, 11
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[3], gamma=0.1)   # 8, 11
 
     # for statement
     for epoch in range(train_config['start_epoch'], train_config['epoch']):
