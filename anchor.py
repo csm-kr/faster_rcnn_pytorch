@@ -4,6 +4,56 @@ import numpy as np
 from utils import cxcy_to_xy, xy_to_cxcy
 
 
+class FRCNNAnchorMaker(object):
+
+    def __init__(self, base_size=16, ratios=[0.5, 1, 2], anchor_scales=[8, 16, 32]):
+        self.base_size = base_size
+        self.ratios = ratios
+        self.anchor_scales = anchor_scales
+
+    def generate_anchor_base(self):
+
+        px = self.base_size / 2.
+        py = self.base_size / 2.
+
+        anchor_base = np.zeros((len(self.ratios) * len(self.anchor_scales), 4), dtype=np.float32)
+        for i in range(len(self.ratios)):
+            for j in range(len(self.anchor_scales)):
+                w = self.base_size * self.anchor_scales[j] * np.sqrt(self.ratios[i])
+                h = self.base_size * self.anchor_scales[j] * np.sqrt(1. / self.ratios[i])
+
+                index = i * len(self.anchor_scales) + j
+                anchor_base[index, 0] = px - w / 2.
+                anchor_base[index, 1] = py - h / 2.
+                anchor_base[index, 2] = px + w / 2.
+                anchor_base[index, 3] = py + h / 2.
+
+        return anchor_base
+
+    def _enumerate_shifted_anchor(self,
+                                  anchor_base,
+                                  origin_image_size):
+
+        origin_height, origin_width = origin_image_size
+        width = origin_width // self.base_size
+        height = origin_height // self.base_size
+        feat_stride = self.base_size
+
+        shift_x = np.arange(0, width * feat_stride, feat_stride)
+        shift_y = np.arange(0, height * feat_stride, feat_stride)
+        shift_x, shift_y = np.meshgrid(shift_x, shift_y)
+        shift = np.stack((shift_x.ravel(), shift_y.ravel(), shift_x.ravel(), shift_y.ravel()), axis=1)
+
+        A = anchor_base.shape[0]
+        K = shift.shape[0]
+        anchor = anchor_base.reshape((1, A, 4)) + shift.reshape((1, K, 4)).transpose((1, 0, 2))
+        anchor = anchor.reshape((K * A, 4)).astype(np.float32)
+
+        divisor = np.array([origin_width, origin_height, origin_width, origin_height])
+        anchor /= divisor
+        return anchor
+
+
 class FasterRCNN_Anchor(object):
     def create_anchors(self, image_size, num_pooling=4):
         print('make retina anchors')
@@ -91,10 +141,48 @@ class FasterRCNN_Anchor(object):
 
 if __name__ == '__main__':
     retina_anchor = FasterRCNN_Anchor()
-    tic = time.time()
-    anchor = retina_anchor.create_anchors(image_size=(600, 1000), num_pooling=4)
-    print(time.time() - tic)
-    center_anchor = anchor
-    print(center_anchor)
+
+    image_sizes = [[600, 1000], [800, 800], [880, 960]]
+    # tic = time.time()
+    # # ** 1st experiments
+    # first_anchors = []
+    # for image_size in image_sizes:
+    #     anchor = retina_anchor.create_anchors(image_size=image_size, num_pooling=4)
+    #     first_anchors.append(anchor)
+    #     print(time.time() - tic)
+    # print("whole time: ", time.time() - tic)
+
+    # # make retina anchors
+    # # 0.06779313087463379
+    # # make retina anchors
+    # # 0.16553187370300293
+    # # make retina anchors
+    # # 0.30914855003356934
+
+    # ** 2nd experiments 0.0009989738464355469
+    # tic = time.time()
+    frcnn_anchor_maker = FRCNNAnchorMaker()
+    second_anchors = []
+    anchor_base = frcnn_anchor_maker.generate_anchor_base()
+    # print(time.time() - tic)
+    for image_size in image_sizes:
+        tic = time.time()
+        anchor = frcnn_anchor_maker._enumerate_shifted_anchor(anchor_base=anchor_base, origin_image_size=image_size)
+        anchor = torch.from_numpy(anchor).cuda()
+        # n_anchor = anchor.shape[0] / ((image_size[0] // 16) * (image_size[1] // 16))
+        # print("num_anchors : ", n_anchor)
+        # second_anchors.append(anchor)
+        print(time.time() - tic)
+    print("whole time: ", time.time() - tic)
+    # print('a')
+    # center_anchor = anchor
+    # print(center_anchor)
+
+    # 0.0010082721710205078
+    # 0.001994609832763672
+    # 0.002991914749145508
+
+    # 약 1000배 차이
+
 
 
