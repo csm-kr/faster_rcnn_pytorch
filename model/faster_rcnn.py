@@ -6,6 +6,7 @@ import numpy as np
 from utils import propose_region
 from model.rpn import RPN
 from anchor import FRCNNAnchorMaker
+from model.rpn import normal_init
 import time
 
 
@@ -21,13 +22,18 @@ class FRCNNHead(nn.Module):
                                 nn.Linear(4096, 4096),
                                 nn.ReLU(inplace=True)
                                 )
-        self.initialize()
+
+        normal_init(self.cls_head, 0, 0.001)
+        normal_init(self.reg_head, 0, 0.01)
+        normal_init(self.fc, 0, 0.01)
 
     def initialize(self):
+
         for c in self.cls_head.children():
             if isinstance(c, nn.Linear):
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
+
         for c in self.reg_head.children():
             if isinstance(c, nn.Linear):
                 nn.init.normal_(c.weight, std=0.01)
@@ -82,7 +88,11 @@ class FRCNN(nn.Module):
         # each image has different anchor
         anchor = self.anchor_maker._enumerate_shifted_anchor(self.anchor_base, origin_image_size=x.size()[2:])
         anchor = torch.from_numpy(anchor).to(x.get_device())  # assign device
+
+        # forward rpn
         cls_rpn, reg_rpn, rois = self.rpn(features, anchor, mode='train')
+
+        # forward frcnn
         cls_frcnn, reg_frcnn = self.head(features, rois)
 
         return cls_rpn, reg_rpn, cls_frcnn, reg_frcnn, anchor
@@ -90,15 +100,49 @@ class FRCNN(nn.Module):
 
 if __name__ == '__main__':
 
-    tic = time.time()
-    frcnn = FRCNN().cuda()
-    print("model cuda time :", time.time() - tic)
-
+    # tic = time.time()
+    # frcnn = FRCNN().cuda()
+    # print("model cuda time :", time.time() - tic)
+    #
     tic = time.time()
     img1 = torch.randn([1, 3, 600, 1000]).cuda()  # 37, 62
     print("image cuda time :", time.time() - tic)
+    #
+    # # load image and check frcnn shape
+    # # 1. load image using PIL library
+    # from PIL import Image
+    # img1 = Image.open('../figures/000001.jpg').convert('RGB')
+    #
+    # # 2. transform resize and tensor
+    # from dataset.detection_transforms import DetResize, DetToTensor, DetRandomHorizontalFlip, DetNormalize
+    #
+    # img1 = DetRandomHorizontalFlip()(img1)
+    # img1 = DetToTensor()(img1)
+    # img1 = DetResize(size=600, max_size=1000)(img1)
+    # img1 = DetNormalize(mean=[0.485, 0.456, 0.406],
+    #                     std=[0.229, 0.224, 0.225])(img1)
+
+
+    #  **** real image 1 make
+    from PIL import Image
+    import torchvision.transforms as tfs
+    # 1. load image
+    image = Image.open('../figures/000001.jpg').convert('RGB')
+    # 2. transform image
+    transforms = tfs.Compose([tfs.Resize((600, 600)),
+                              tfs.ToTensor(),
+                              tfs.Normalize(mean=[0.485, 0.456, 0.406],
+                                            std=[0.229, 0.224, 0.225])])
+    # 3. set image and boxes tensor
+    image_tensor = transforms(image).unsqueeze(0)
+    boxes_tensor = [torch.FloatTensor([[79.8867, 286.8000, 329.7450, 444.0000],
+                                       [11.8980, 13.2000, 596.6006, 596.4000]])]
+
+    boxes_tensor_scale_1 = [box_tensor/600 for box_tensor in boxes_tensor]
+    img1 = image_tensor.cuda()
 
     tic = time.time()
+    frcnn = FRCNN().cuda()
     rpn_cls, rpn_reg, frcnn_cls, frcnn_reg, anchor = frcnn(img1)
 
     print(rpn_cls.size())     # torch.Size([1, 18, 37, 62])
