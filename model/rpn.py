@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import torch.nn as nn
 from torchvision.models import vgg16_bn
-from utils import cxcy_to_xy, decode
+from utils import cxcy_to_xy, decode, xy_to_cxcy
 from torchvision.ops.boxes import nms
 
 
@@ -28,33 +28,31 @@ class RegionProposal(nn.Module):
         pred_loc = pred_loc.reshape(batch_size, -1, 4)
 
         # 2. pred to roi
-        roi = pred_bboxes = cxcy_to_xy(decode(pred_loc.squeeze(), anchor)).clamp(0, 1)     # for batch 1, [67995, 4]
+        roi = cxcy_to_xy(decode(pred_loc.squeeze(), xy_to_cxcy(anchor))).clamp(0, 1)     # for batch 1, [67995, 4]
         pred_scores = pred_cls.squeeze()                                         # for batch 1, [67995, num_classes]
 
-        # TODO pred scores to softmax or sigmoid
-        pred_scores = torch.sigmoid(pred_scores)
+        # TODO pred scores to softmax or sigmoid -> must softmax
+        # pred_scores = torch.sigmoid(pred_scores) .. (X)
+        softmax_pred_scores = torch.softmax(pred_scores, dim=-1)[..., 1]        # foreground rpn score, [num_anchors]
 
-        # 2. minimum size keep
-        # ws = roi[:, 2] - roi[:, 0]
-        # hs = roi[:, 3] - roi[:, 1]
-        # TODO np to torch
-        # keep = np.where((hs >= self.min_size) & (ws >= self.min_size))[0]
-        # roi = roi[keep, :]
-        # score = score[keep]
+        # 3. keep longer than minimum size
+        ws = roi[:, 2] - roi[:, 0]
+        hs = roi[:, 3] - roi[:, 1]
+        keep = (hs >= self.min_size) & (ws >= self.min_size)  # [17173]
+        roi = roi[keep, :]
+        softmax_pred_scores = softmax_pred_scores[keep]
 
-        # 3. nms keep
-        sorted_scores, sorted_idx_scores = pred_scores[..., 1].squeeze().sort(descending=True)
-        if len(sorted_idx_scores) < pre_nms_top_k:
-            pre_nms_top_k = len(sorted_idx_scores)
-        roi = roi[sorted_idx_scores[:pre_nms_top_k]]  # [12000, 4]
-        roi = roi[:pre_nms_top_k]  # [12000]
-        sorted_scores = sorted_scores[:pre_nms_top_k]  # [12000]
-
+        # 4. nms
+        sorted_scores, sorted_scores_indices = softmax_pred_scores.sort(descending=True)
+        if len(sorted_scores_indices) < pre_nms_top_k:
+            pre_nms_top_k = len(sorted_scores_indices)
+        roi = roi[sorted_scores_indices[:pre_nms_top_k]]      # [12000, 4]
+        roi = roi[:pre_nms_top_k]                             # [12000]
+        sorted_scores = sorted_scores[:pre_nms_top_k]         # [12000]
         keep_idx = nms(boxes=roi, scores=sorted_scores, iou_threshold=0.7)
         keep = torch.zeros(pre_nms_top_k, dtype=torch.bool)
-        keep[keep_idx] = 1  # int64 to bool
+        keep[keep_idx] = 1                                    # int64 to bool  # [ex)1735 ~ 2000]
         roi = roi[keep][:post_num_top_k]
-
         return roi
 
 
@@ -66,29 +64,69 @@ class RPN(nn.Module):
         self.cls_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 2, kernel_size=1)
         self.reg_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 4, kernel_size=1)
         self.region_proposal = RegionProposal()
-        self.initialize()
+        # self.initialize()
+        normal_init(self.intermediate_layer, 0, 0.01)
+        normal_init(self.cls_layer, 0, 0.01)
+        normal_init(self.reg_layer, 0, 0.01)
 
     def initialize(self):
         for c in self.intermediate_layer.children():
             if isinstance(c, nn.Conv2d):
+                import torch
+                torch.manual_seed(111)
+                import random
+                random.seed(0)
+                import numpy as np
+                np.random.seed(0)
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
         for c in self.cls_layer.children():
             if isinstance(c, nn.Conv2d):
+                import torch
+                torch.manual_seed(111)
+                import random
+                random.seed(0)
+                import numpy as np
+                np.random.seed(0)
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
         for c in self.reg_layer.children():
             if isinstance(c, nn.Conv2d):
+                import torch
+                torch.manual_seed(111)
+                import random
+                random.seed(0)
+                import numpy as np
+                np.random.seed(0)
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
 
     def forward(self, features, anchor, mode):
 
-        x = self.intermediate_layer(features)
+        x = torch.relu(self.intermediate_layer(features))
         cls = self.cls_layer(x)
         reg = self.reg_layer(x)
         roi = self.region_proposal((cls, reg), anchor, mode)
         return cls, reg, roi
+
+
+def normal_init(m, mean, stddev, truncated=False):
+    """
+    weight initalizer: truncated normal and random normal.
+    """
+    # sequential 일때, (fc
+    if type(m) == torch.nn.modules.container.Sequential:
+        for m_ in m.children():
+            if type(m_) == torch.nn.modules.linear.Linear or type(m_) == torch.nn.modules.conv.Conv2d:
+                m_.weight.data.normal_(mean, stddev)
+                m_.bias.data.zero_()
+    else:
+        # x is a parameter
+        if truncated:
+            m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
+        else:
+            m.weight.data.normal_(mean, stddev)
+            m.bias.data.zero_()
 
 
 if __name__ == '__main__':
