@@ -52,29 +52,22 @@ class RPNLoss(torch.nn.Module):
         # 2-4 sample target
         n_pos = (label == 1).sum()
         n_neg = (label == 0).sum()
-
         if n_pos > 128:
             pos_indices = torch.arange(label.size(0))[label == 1]
             perm = torch.randperm(pos_indices.size(0))
             label[pos_indices[perm[128 - n_pos:]]] = -1  # convert pos label to ignore label
-
         if n_neg > 128:
-
             if n_pos >= 128:
                 neg_indices = torch.arange(label.size(0))[label == 0]
                 perm = torch.randperm(neg_indices.size(0))
                 label[neg_indices[perm[128 - n_neg:]]] = -1  # convert neg label to ignore label
-
             # fewer that 128 positive samples ,pad negative ones
             if n_pos < 128:
                 neg_indices = torch.arange(label.size(0))[label == 0]
                 perm = torch.randperm(neg_indices.size(0))
                 label[neg_indices[perm[(256 - n_pos) - n_neg:]]] = -1  # convert neg label to ignore label
-
         assert (label == 1).sum() + (label == 0).sum() == 256
 
-        print((label == 1).sum())
-        print((label == 0).sum())
         # 3. bbox encoding
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
 
