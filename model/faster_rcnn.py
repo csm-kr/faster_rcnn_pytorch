@@ -138,7 +138,8 @@ if __name__ == '__main__':
     boxes_tensor = [torch.FloatTensor([[79.8867, 286.8000, 329.7450, 444.0000],
                                        [11.8980, 13.2000, 596.6006, 596.4000]])]
 
-    boxes_tensor_scale_1 = [box_tensor/600 for box_tensor in boxes_tensor]
+    boxes_tensor_scale_1 = [(box_tensor/600).cuda() for box_tensor in boxes_tensor]
+    # boxes_tensor_scale_1 = [b.cuda() for b in boxes_tensor_scale_1]
     img1 = image_tensor.cuda()
 
     tic = time.time()
@@ -150,4 +151,8 @@ if __name__ == '__main__':
     print(frcnn_cls.size())   # torch.Size([1, 1988, 21])
     print(frcnn_reg.size())   # torch.Size([1, 1988, 4])
     print(anchor.size())      # torch.Size([20646, 4])
+
+    from loss.rpn_loss import RPNLoss
+    loss = RPNLoss()
+    loss.build_rpn_target(bbox=boxes_tensor_scale_1, anchor=anchor)
 
