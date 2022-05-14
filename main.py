@@ -1,12 +1,12 @@
 from config import load_arguments
 import torch
 import visdom
+
 from dataset.build import build_dataset
-from coder import FasterRCNN_Coder
-from model.build import build_model
-from loss.build import build_loss
+from loss.faster_rcnn_loss import FRCNNLoss
 from train import train
 from torch.optim.lr_scheduler import MultiStepLR
+from model.faster_rcnn import FRCNN
 
 
 def main_worker():
@@ -30,12 +30,11 @@ def main_worker():
     train_loader, test_loader = build_dataset(data_config)
 
     # 5. model
-    model = build_model(model_config)
+    model = FRCNN()
     model = model.to(device)
 
     # 6. loss
-    coder = FasterRCNN_Coder()
-    criterion = build_loss(model_config, coder)
+    criterion = FRCNNLoss()
 
     # 7. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),
@@ -61,6 +60,7 @@ def main_worker():
               opts=train_config)
 
         scheduler.step()
+
         # 10. test/evaluation
 
 

@@ -19,10 +19,8 @@ def train(epoch, device, vis, train_loader, model, criterion, optimizer, schedul
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
 
-        height, width = images.size()[2:]  # height, width
-        size = (height, width)
-        pred = model(images)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
-        loss, cls_loss, reg_loss = criterion(pred, boxes, labels, size)
+        pred, target = model(images, boxes, labels)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
+        loss, rpn_cls_loss, rpn_loc_loss, fast_rcnn_cls_loss, fast_rcnn_loc_loss = criterion(pred, target)
 
         # sgd
         optimizer.zero_grad()
@@ -38,27 +36,31 @@ def train(epoch, device, vis, train_loader, model, criterion, optimizer, schedul
             print('Epoch: [{0}]\t'
                   'Step: [{1}/{2}]\t'
                   'Loss: {loss:.4f}\t'
-                  'Cls_loss: {cls_loss:.4f}\t'
-                  'Reg_loss: {reg_loss:.4f}\t'
+                  'RPN_Cls_loss: {rpn_cls_loss:.4f}\t'
+                  'RPN_Reg_loss: {rpn_reg_loss:.4f}\t'                  
+                  'Fast_RCNN_Cls_loss: {fast_rcnn_cls_loss:.4f}\t'
+                  'Fast_RCNN_Reg_loss: {fast_rcnn_reg_loss:.4f}\t'
                   'Learning rate: {lr:.7f} s \t'
                   'Time : {time:.4f}\t'
                   .format(epoch, idx, len(train_loader),
                           loss=loss,
-                          cls_loss=cls_loss,
-                          reg_loss=reg_loss,
+                          rpn_cls_loss=rpn_cls_loss,
+                          rpn_reg_loss=rpn_loc_loss,
+                          fast_rcnn_cls_loss=fast_rcnn_cls_loss,
+                          fast_rcnn_reg_loss=fast_rcnn_loc_loss,
                           lr=lr,
                           time=toc - tic))
 
             if vis is not None:
                 # loss plot
-                vis.line(X=torch.ones((1, 3)).cpu() * idx + epoch * train_loader.__len__(),  # step
-                         Y=torch.Tensor([loss, cls_loss, reg_loss]).unsqueeze(0).cpu(),
+                vis.line(X=torch.ones((1, 5)).cpu() * idx + epoch * train_loader.__len__(),  # step
+                         Y=torch.Tensor([loss, rpn_cls_loss, rpn_loc_loss, fast_rcnn_cls_loss, fast_rcnn_loc_loss]).unsqueeze(0).cpu(),
                          win='train_loss',
                          update='append',
                          opts=dict(xlabel='step',
                                    ylabel='Loss',
                                    title='training loss',
-                                   legend=['Total Loss', 'Cls Loss', 'Reg Loss']))
+                                   legend=['Total Loss', 'RPN CLS', 'RPN REG', 'FCNN CLS', 'FCNN REG']))
 
     if not os.path.exists(opts['save_path']):
         os.mkdir(opts['save_path'])

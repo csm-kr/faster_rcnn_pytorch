@@ -280,7 +280,7 @@ if __name__ == "__main__":
     ])
 
     train_set = VOC_Dataset(root,
-                            split='train',
+                            split='test',
                             download=False,
                             transform=transform_train,
                             visualization=True)

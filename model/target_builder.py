@@ -43,6 +43,7 @@ class FastRCNNTargetBuilder(nn.Module):
 
         # set negative indices background label
         fast_rcnn_tg_cls[n_pos:] = 0
+        fast_rcnn_tg_cls = fast_rcnn_tg_cls.type(torch.long)
 
         # make roi
         sample_rois = rois[keep_indices, :]
@@ -107,7 +108,7 @@ class RPNTargetBuilder(nn.Module):
         pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=bbox.get_device())
         keep_indices = torch.arange(len(anchor_keep))[anchor_keep]
         pad_label[keep_indices] = label
-        rpn_tg_cls = pad_label
+        rpn_tg_cls = pad_label.type(torch.long)
 
         pad_bbox = torch.zeros([len(anchor_keep), 4], dtype=torch.float32, device=bbox.get_device())
         pad_bbox[keep_indices] = tg_cxywh

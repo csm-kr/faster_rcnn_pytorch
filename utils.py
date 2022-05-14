@@ -46,6 +46,18 @@ def bar_custom(current, total, width=30):
     return progress
 
 
+def encode(gt_cxywh, anc_cxywh):
+    tg_cxyw = (gt_cxywh[:, :2] - anc_cxywh[:, :2]) / anc_cxywh[:, 2:]
+    tg_wh = torch.exp(gt_cxywh[:, 2:]) * anc_cxywh[:, 2:]
+    return torch.cat([tg_cxyw, tg_wh], dim=1)
+
+
+def decode(tcxcy, center_anchor):
+    cxcy = tcxcy[:, :2] * center_anchor[:, 2:] + center_anchor[:, :2]
+    wh = torch.exp(tcxcy[:, 2:]) * center_anchor[:, 2:]
+    return torch.cat([cxcy, wh], dim=1)
+
+
 def cxcy_to_xy(cxcy):
 
     x1y1 = cxcy[..., :2] - cxcy[..., 2:] / 2
@@ -198,8 +210,8 @@ def propose_region(pred, coder, mode='train'):
     pred_cls, pred_reg = pred
     batch_size = pred_cls.size(0)
 
-    pred_cls = pred_cls.permute(0, 2, 3, 1)  # [B, C, H, W] to [B, H, W, C]
-    pred_reg = pred_reg.permute(0, 2, 3, 1)  # [B, C, H, W] to [B, H, W, C]
+    pred_cls = pred_cls.permute(0, 2, 3, 1).contiguous()  # [B, C, H, W] to [B, H, W, C]
+    pred_reg = pred_reg.permute(0, 2, 3, 1).contiguous()  # [B, C, H, W] to [B, H, W, C]
     pred_cls = pred_cls.reshape(batch_size, -1, 2)
     pred_reg = pred_reg.reshape(batch_size, -1, 4)
 
@@ -213,10 +225,13 @@ def propose_region(pred, coder, mode='train'):
         pre_nms_top_k = 3000
         post_num_top_k = 300
 
+    coder.assign_anchors_to_device()
     pred_bboxes, pred_scores = coder.post_processing([pred_cls, pred_reg])
     pred_scores = torch.sigmoid(pred_scores)
 
     sorted_scores, sorted_idx_scores = pred_scores[..., 1].squeeze().sort(descending=True)
+    if len(sorted_idx_scores) < pre_nms_top_k:
+        pre_nms_top_k = len(sorted_idx_scores)
     sorted_boxes = pred_bboxes[sorted_idx_scores[:pre_nms_top_k]]   # [12000, 4]
     sorted_scores = sorted_scores[:pre_nms_top_k]                   # [12000]
 

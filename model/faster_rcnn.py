@@ -102,8 +102,8 @@ class FRCNN(nn.Module):
 
         # make target for fast rcnn
         target_fast_rcnn_cls, target_fast_rcnn_loc, sample_rois = self.fast_rcnn_target_builder.build_fast_rcnn_target(bbox=bbox,
-                                                                                                                      label=label,
-                                                                                                                      rois=rois)
+                                                                                                                       label=label,
+                                                                                                                       rois=rois)
         # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
         pred_fast_rcnn_cls, pred_fast_rcnn_loc = self.head(features, sample_rois)
 
