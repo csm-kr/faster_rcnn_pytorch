@@ -20,15 +20,10 @@ class RegionProposal(nn.Module):
             post_num_top_k = 300
 
         # 1. setting for make roi
-        pred_cls, pred_loc = pred
-        batch_size = pred_cls.size(0)
-        pred_cls = pred_cls.permute(0, 2, 3, 1).contiguous()  # [B, C, H, W] to [B, H, W, C]
-        pred_loc = pred_loc.permute(0, 2, 3, 1).contiguous()  # [B, C, H, W] to [B, H, W, C]
-        pred_cls = pred_cls.reshape(batch_size, -1, 2)
-        pred_loc = pred_loc.reshape(batch_size, -1, 4)
+        pred_cls, pred_loc = pred  # [B, anchor, 2] / [B, anchor, 4]
 
         # 2. pred to roi
-        roi = cxcy_to_xy(decode(pred_loc.squeeze(), xy_to_cxcy(anchor))).clamp(0, 1)     # for batch 1, [67995, 4]
+        roi = cxcy_to_xy(decode(pred_loc.squeeze(), xy_to_cxcy(anchor))).clamp(0, 1)       # for batch 1, [67995, 4]
         pred_scores = pred_cls.squeeze()                                         # for batch 1, [67995, num_classes]
 
         # TODO pred scores to softmax or sigmoid -> must softmax
@@ -62,36 +57,28 @@ class RPN(nn.Module):
         num_anchors = 9
         self.intermediate_layer = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
         self.cls_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 2, kernel_size=1)
-        self.reg_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 4, kernel_size=1)
+        self.loc_layer = nn.Conv2d(in_channels=512, out_channels=num_anchors * 4, kernel_size=1)
         self.region_proposal = RegionProposal()
         # self.initialize()
         normal_init(self.intermediate_layer, 0, 0.01)
         normal_init(self.cls_layer, 0, 0.01)
-        normal_init(self.reg_layer, 0, 0.01)
+        normal_init(self.loc_layer, 0, 0.01)
 
     def initialize(self):
         for c in self.intermediate_layer.children():
             if isinstance(c, nn.Conv2d):
-                import torch
-                torch.manual_seed(111)
-                import random
-                random.seed(0)
-                import numpy as np
                 np.random.seed(0)
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
+
         for c in self.cls_layer.children():
             if isinstance(c, nn.Conv2d):
-                import torch
-                torch.manual_seed(111)
-                import random
-                random.seed(0)
-                import numpy as np
-                np.random.seed(0)
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
-        for c in self.reg_layer.children():
+
+        for c in self.loc_layer.children():
             if isinstance(c, nn.Conv2d):
+                # TODO compare 3 random lib
                 import torch
                 torch.manual_seed(111)
                 import random
@@ -103,11 +90,18 @@ class RPN(nn.Module):
 
     def forward(self, features, anchor, mode):
 
+        batch_size = features.size(0)
         x = torch.relu(self.intermediate_layer(features))
-        cls = self.cls_layer(x)
-        reg = self.reg_layer(x)
-        roi = self.region_proposal((cls, reg), anchor, mode)
-        return cls, reg, roi
+        pred_cls = self.cls_layer(x)
+        pred_loc = self.loc_layer(x)
+
+        pred_cls = pred_cls.permute(0, 2, 3, 1).contiguous()  # [B, C, H, W] to [B, H, W, C]
+        pred_loc = pred_loc.permute(0, 2, 3, 1).contiguous()  # [B, C, H, W] to [B, H, W, C]
+        pred_cls = pred_cls.reshape(batch_size, -1, 2)
+        pred_loc = pred_loc.reshape(batch_size, -1, 4)
+
+        rois = self.region_proposal((pred_cls, pred_loc), anchor, mode)
+        return pred_cls, pred_loc, rois
 
 
 def normal_init(m, mean, stddev, truncated=False):
