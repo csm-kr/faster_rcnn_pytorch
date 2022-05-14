@@ -7,6 +7,8 @@ from utils import propose_region
 from model.rpn import RPN
 from anchor import FRCNNAnchorMaker
 from model.rpn import normal_init
+from model.target_builder import FastRCNNTargetBuilder
+from model.target_builder import RPNTargetBuilder
 import time
 
 
@@ -56,7 +58,7 @@ class FRCNNHead(nn.Module):
         filtered_boxes_tensor = [torch.FloatTensor(filtered_rois_numpy).to(device)]
 
         # --------------- RoI Pooling --------------- #
-        x = self.roi_pool(features, filtered_boxes_tensor)           # [2000, 512, 7, 7]
+        x = self.roi_pool(features, filtered_boxes_tensor)             # [2000, 512, 7, 7]
         x = x.view(x.size(0), -1)                                      # 2000, 512 * 7 * 7
 
         # --------------- forward head --------------- #
@@ -75,13 +77,15 @@ class FRCNN(nn.Module):
         # ** for forward
         self.extractor = nn.Sequential(*list(vgg16(pretrained=True).features.children())[:-1])
         self.rpn = RPN()
+        self.rpn_target_builder = RPNTargetBuilder()
+        self.fast_rcnn_target_builder = FastRCNNTargetBuilder()
         self.head = FRCNNHead(num_classes=21)
 
         # ** for anchor
         self.anchor_maker = FRCNNAnchorMaker()
         self.anchor_base = self.anchor_maker.generate_anchor_base()
 
-    def forward(self, x):
+    def forward(self, x, bbox, label):
         # x : image [B, 3, H, W]
         features = self.extractor(x)
 
@@ -89,21 +93,26 @@ class FRCNN(nn.Module):
         anchor = self.anchor_maker._enumerate_shifted_anchor(self.anchor_base, origin_image_size=x.size()[2:])
         anchor = torch.from_numpy(anchor).to(x.get_device())  # assign device
 
+        # make target for rpn
+        target_rpn_cls, target_rpn_loc = self.rpn_target_builder.build_rpn_target(bbox=bbox,
+                                                                                  anchor=anchor)
         # forward rpn
-        cls_rpn, reg_rpn, rois = self.rpn(features, anchor, mode='train')
+        pred_rpn_cls, pred_rpn_reg, rois = self.rpn(features, anchor, mode='train')
 
-        # forward frcnn
-        cls_frcnn, reg_frcnn = self.head(features, rois)
 
-        return cls_rpn, reg_rpn, cls_frcnn, reg_frcnn, anchor
+        # make target for fast rcnn
+        target_fast_rcnn_cls, target_fast_rcnn_loc, sample_rois = self.fast_rcnn_target_builder.build_fast_rcnn_target(bbox=bbox,
+                                                                                                                      label=label,
+                                                                                                                      rois=rois)
+        # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
+        pred_fast_rcnn_cls, pred_fast_rcnn_loc = self.head(features, sample_rois)
+
+        return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_loc), \
+               (target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc)
 
 
 if __name__ == '__main__':
 
-    # tic = time.time()
-    # frcnn = FRCNN().cuda()
-    # print("model cuda time :", time.time() - tic)
-    #
     tic = time.time()
     img1 = torch.randn([1, 3, 600, 1000]).cuda()  # 37, 62
     print("image cuda time :", time.time() - tic)
@@ -139,20 +148,30 @@ if __name__ == '__main__':
                                        [11.8980, 13.2000, 596.6006, 596.4000]])]
 
     boxes_tensor_scale_1 = [(box_tensor/600).cuda() for box_tensor in boxes_tensor]
-    # boxes_tensor_scale_1 = [b.cuda() for b in boxes_tensor_scale_1]
-    img1 = image_tensor.cuda()
+    label_tensor = [torch.Tensor([11, 14])]
+    label_tensor = [label.cuda() for label in label_tensor]
 
+    # boxes_tensor_scale_1 = [b.cuda() for b in boxes_tensor_scale_1]
+    img = image_tensor.cuda()
+    bbox = boxes_tensor_scale_1
+    label = label_tensor
+
+    # label =
     tic = time.time()
     frcnn = FRCNN().cuda()
-    rpn_cls, rpn_reg, frcnn_cls, frcnn_reg, anchor = frcnn(img1)
+    (pred_rpn_cls, pred_rpn_reg, pred_fast_cls, pred_fast_rcnn_loc), \
+    (target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc) = frcnn(img, bbox, label)
 
-    print(rpn_cls.size())     # torch.Size([1, 18, 37, 62])
-    print(rpn_reg.size())     # torch.Size([1, 36, 37, 62])
-    print(frcnn_cls.size())   # torch.Size([1, 1988, 21])
-    print(frcnn_reg.size())   # torch.Size([1, 1988, 4])
-    print(anchor.size())      # torch.Size([20646, 4])
+    print(pred_rpn_cls.size())     # torch.Size([1, 18, 37, 62])
+    print(pred_rpn_reg.size())     # torch.Size([1, 18, 37, 62])
+    print(pred_fast_cls.size())     # torch.Size([1, 18, 37, 62])
+    print(pred_fast_rcnn_loc.size())     # torch.Size([1, 18, 37, 62])
 
-    from loss.rpn_loss import RPNLoss
-    loss = RPNLoss()
-    loss.build_rpn_target(bbox=boxes_tensor_scale_1, anchor=anchor)
+    print((target_rpn_cls >= 0).sum())     # torch.Size([1, 18, 37, 62])
+    # print(target_rpn_cls[target_rpn_cls >= 0].size())     # torch.Size([1, 18, 37, 62])
+    # print(target_rpn_loc[target_rpn_cls >= 0].size())     # torch.Size([1, 36, 37, 62])
+    print(target_rpn_cls.size())     # torch.Size([1, 18, 37, 62])
+    print(target_rpn_loc.size())     # torch.Size([1, 36, 37, 62])
+    print(target_fast_rcnn_cls.size())   # torch.Size([1, 1988, 21])
+    print(target_fast_rcnn_loc.size())   # torch.Size([1, 1988, 4])
 
