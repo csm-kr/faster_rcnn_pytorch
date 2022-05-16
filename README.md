@@ -11,7 +11,7 @@ re-implementation of faster rcnn (NIPS2015)
 
 ### RESULTS
 
-####1. qualitative result
+#### 1. qualitative result
 
 Please refer to https://arxiv.org/abs/1506.01497
 
