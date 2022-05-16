@@ -67,44 +67,44 @@ def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts):
                            title='test loss',
                            legend=['mAP']))
 
-
-if __name__ == '__main__':
-    from config import load_arguments
-    from dataset.build import build_dataset
-    from model.build import build_model
-    from coder import FasterRCNN_Coder
-    from loss.build import build_loss
-
-    # 1. config
-    yaml_file = './yaml/faster_rcnn_config.yaml'
-    config = load_arguments(yaml_file)
-
-    # configuration with yaml
-    train_config = config['train']
-    data_config = config['data']
-    model_config = config['model']
-
-    # 2. device
-    device_ids = train_config['device']
-    device = torch.device('cuda:{}'.format(min(device_ids)) if torch.cuda.is_available() else 'cpu')
-
-    # 3. data(set/loader)
-    train_loader, test_loader = build_dataset(data_config)
-
-    # 4. model
-    model = build_model(model_config)
-    model = model.to(device)
-
-    # 5. loss
-    coder = FasterRCNN_Coder()
-    criterion = build_loss(model_config, coder)
-
-    test(epoch=3,
-         device=device,
-         vis=None,
-         test_loader=test_loader,
-         model=model,
-         criterion=criterion,
-         optimizer=None,
-         scheduler=None,
-         opts=train_config)
+#
+# if __name__ == '__main__':
+#     from config import load_arguments
+#     from dataset.build import build_dataset
+#     from model.build import build_model
+#     from coder import FasterRCNN_Coder
+#     from loss.build import build_loss
+#
+#     # 1. config
+#     yaml_file = './yaml/faster_rcnn_config.yaml'
+#     config = load_arguments(yaml_file)
+#
+#     # configuration with yaml
+#     train_config = config['train']
+#     data_config = config['data']
+#     model_config = config['model']
+#
+#     # 2. device
+#     device_ids = train_config['device']
+#     device = torch.device('cuda:{}'.format(min(device_ids)) if torch.cuda.is_available() else 'cpu')
+#
+#     # 3. data(set/loader)
+#     train_loader, test_loader = build_dataset(data_config)
+#
+#     # 4. model
+#     model = build_model(model_config)
+#     model = model.to(device)
+#
+#     # 5. loss
+#     coder = FasterRCNN_Coder()
+#     criterion = build_loss(model_config, coder)
+#
+#     test_and_eval(epoch=3,
+#                   device=device,
+#                   vis=None,
+#                   test_loader=test_loader,
+#                   model=model,
+#                   criterion=criterion,
+#                   optimizer=None,
+#                   scheduler=None,
+#                   opts=train_config)
