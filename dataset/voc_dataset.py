@@ -106,8 +106,11 @@ class VOC_Dataset(data.Dataset):
 
         for data_ in self.data_list:
 
-            self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/JPEGImages/*.jpg')))
-            self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/Annotations/*.xml')))
+            # self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/JPEGImages/*.jpg')))
+            # self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/Annotations/*.xml')))
+            # only voc 2007
+            self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/VOC2007/JPEGImages/*.jpg')))
+            self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/VOC2007/Annotations/*.xml')))
 
         self.img_list = sorted(self.img_list)
         self.anno_list = sorted(self.anno_list)
@@ -131,9 +134,9 @@ class VOC_Dataset(data.Dataset):
 
         boxes = torch.FloatTensor(boxes)
         labels = torch.LongTensor(labels)  # 0 ~ 19
-        img_name = torch.FloatTensor([img_name_to_ascii])
-        additional_info = torch.FloatTensor([img_width, img_height])
-
+        info = {}
+        info['name'] = img_name
+        info['original_wh'] = [int(img_width), int(img_height)]
         # --------------------------- for transform ---------------------------
         if self.transform is not None:
             image, boxes, labels = self.transform(image, boxes, labels)
@@ -182,7 +185,7 @@ class VOC_Dataset(data.Dataset):
 
             plt.show()
         if self.split == "test":
-            return image, boxes, labels, img_name, additional_info
+            return image, boxes, labels, info
 
         return image, boxes, labels
 
@@ -230,20 +233,18 @@ class VOC_Dataset(data.Dataset):
         images = list()
         boxes = list()
         labels = list()
-        img_name = list()
-        additional_info = list()
+        info = list()
 
         for b in batch:
             images.append(b[0])
             boxes.append(b[1])
             labels.append(b[2])
             if self.split == "test":
-                img_name.append(b[3])
-                additional_info.append(b[4])
+                info.append(b[3])
 
         images = torch.stack(images, dim=0)
         if self.split == "test":
-            return images, boxes, labels, img_name, additional_info
+            return images, boxes, labels, info
         return images, boxes, labels
 
 
