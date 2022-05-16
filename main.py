@@ -4,9 +4,12 @@ import visdom
 
 from dataset.build import build_dataset
 from loss.faster_rcnn_loss import FRCNNLoss
-from train import train
+
 from torch.optim.lr_scheduler import MultiStepLR
 from model.faster_rcnn import FRCNN
+
+from train import train
+from test import test
 
 
 def main_worker():
@@ -43,7 +46,7 @@ def main_worker():
                                 weight_decay=train_config['weight_decay'])
 
     # 8. scheduler
-    scheduler = MultiStepLR(optimizer=optimizer, milestones=[3], gamma=0.1)   # 8, 11
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[10], gamma=0.1)   # 8, 11
 
     # for statement
     for epoch in range(train_config['start_epoch'], train_config['epoch']):
@@ -62,6 +65,13 @@ def main_worker():
         scheduler.step()
 
         # 10. test/evaluation
+        test(epoch=epoch,
+             device=device,
+             vis=vis,
+             test_loader=test_loader,
+             model=model,
+             criterion=criterion,
+             opts=train_config)
 
 
 if __name__ == '__main__':

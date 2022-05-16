@@ -1,6 +1,6 @@
 train:
   lr: 0.001
-  epoch: 4
+  epoch: 20
   batch_size: 1
   weight_decay: 0.0001
   start_epoch: 0
@@ -33,7 +33,7 @@ data:
 
 
 model:
-  model_name: 'rpn'
-  # model_name: 'faster_rcnn'
+  # model_name: 'rpn'
+  model_name: 'frcnn'
 
 

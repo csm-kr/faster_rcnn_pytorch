@@ -4,9 +4,14 @@ import torch
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from utils import propose_region
+from evaluation.evaluator import Evaluator
 
 
-def test(epoch, device, vis, test_loader, model, criterion, optimizer, scheduler, opts):
+@ torch.no_grad()
+def test(epoch, device, vis, test_loader, model, criterion, opts):
+
+    # 0. evaluator
+    evaluator = Evaluator(data_type='voc')
 
     # 1. load .pth
     checkpoint = torch.load(f=os.path.join(opts['save_path'], opts['save_file_name'] + '.{}.pth.tar'.format(epoch)),
@@ -17,73 +22,38 @@ def test(epoch, device, vis, test_loader, model, criterion, optimizer, scheduler
     tic = time.time()
     sum_loss = 0
 
-    with torch.no_grad():
-        for idx, data in enumerate(test_loader):
+    for idx, data in enumerate(test_loader):
 
-            images = data[0]
-            boxes = data[1]
-            labels = data[2]
+        images = data[0]
+        boxes = data[1]
+        labels = data[2]
+        info = data[3][0]  # [{}]
 
-            # 2. load data to device
-            images = images.to(device)
-            boxes = [b.to(device) for b in boxes]
-            labels = [l.to(device) for l in labels]
+        # 2. load data to device
+        images = images.to(device)
+        boxes = [b.to(device) for b in boxes]
+        labels = [l.to(device) for l in labels]
 
-            # 3. forward
-            height, width = images.size()[2:]  # height, width
-            size = (height, width)
-            pred = model(images)
-            # coder = criterion.coder
-            loss, cls_loss, reg_loss = criterion(pred, boxes, labels, size)
+        # 3. forward(predict)
+        pred_bboxes, pred_labels, pred_scores = model.predict(images, boxes, labels)
+        eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
+        evaluator.get_info(eval_info)
+        if idx % 100 == 0:
+            print(idx)
 
-            sum_loss += loss.item()
+    mAP = evaluator.evaluate(test_loader.dataset)
+    print(mAP)
 
-            # ---------- eval ----------
-            pred_boxes = propose_region(pred=pred,
-                                        coder=criterion.coder)
-            pred_boxes = pred_boxes.cpu()
-
-            # ---------------------------- visualization ----------------------------
-            # 0. permute
-            images = images.cpu()
-            images = images.squeeze(0).permute(1, 2, 0)  # B, C, H, W --> H, W, C
-
-            # 1. un normalization
-            images *= torch.Tensor([0.229, 0.224, 0.225])
-            images += torch.Tensor([0.485, 0.456, 0.406])
-
-            # 2. RGB to BGR
-            image_np = images.numpy()
-
-            # 3. box scaling
-            size_ = torch.FloatTensor([size[1], size[0], size[1], size[0]])
-            pred_boxes *= size_
-            bbox = pred_boxes
-            plt.figure('result')
-            plt.imshow(image_np)
-
-            for i in range(len(bbox)):
-            # for i in range(len(bbox[:10])):
-                x1 = bbox[i][0]
-                y1 = bbox[i][1]
-                x2 = bbox[i][2]
-                y2 = bbox[i][3]
-
-                # class and score
-                # plt.text(x=x1 - 5,
-                #          y=y1 - 5,
-                #          fontsize=10,
-                #          bbox=dict(facecolor=[0, 0, 1],
-                #                    alpha=0.5))
-
-                # bounding box
-                plt.gca().add_patch(Rectangle(xy=(x1, y1),
-                                              width=x2 - x1,
-                                              height=y2 - y1,
-                                              linewidth=1,
-                                              edgecolor=[0, 0, 1],
-                                              facecolor='none'))
-            plt.show()
+    if vis is not None:
+        # loss plot
+        vis.line(X=torch.ones((1, 1)).cpu() * epoch,  # step
+                 Y=torch.Tensor([mAP]).unsqueeze(0).cpu(),
+                 win='test_loss',
+                 update='append',
+                 opts=dict(xlabel='step',
+                           ylabel='test',
+                           title='test loss',
+                           legend=['mAP']))
 
 
 if __name__ == '__main__':
