@@ -8,7 +8,7 @@ from evaluation.evaluator import Evaluator
 
 
 @ torch.no_grad()
-def test(epoch, device, vis, test_loader, model, criterion, opts):
+def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts):
 
     # 0. evaluator
     evaluator = Evaluator(data_type='voc')
@@ -37,10 +37,22 @@ def test(epoch, device, vis, test_loader, model, criterion, opts):
         # 3. forward(predict)
         pred_bboxes, pred_labels, pred_scores = model.predict(images, boxes, labels)
         eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
-        evaluator.get_info(eval_info)
-        if idx % 100 == 0:
-            print(idx)
 
+        # 4. get info for evaluation
+        evaluator.get_info(eval_info)
+
+        # 5. print log
+        toc = time.time()
+        if idx % 1000 == 0 or idx == len(test_loader) - 1:
+            print('Epoch: [{0}]\t'
+                  'Step: [{1}/{2}]\t'
+                  'Time : {time:.4f}\t'
+                  .format(epoch,
+                          idx,
+                          len(test_loader),
+                          time=toc - tic))
+
+    # calculate mAP
     mAP = evaluator.evaluate(test_loader.dataset)
     print(mAP)
 

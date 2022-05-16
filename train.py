@@ -3,7 +3,7 @@ import time
 import torch
 
 
-def train(epoch, device, vis, train_loader, model, criterion, optimizer, scheduler, opts):
+def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimizer, scheduler, opts):
 
     tic = time.time()
     model.train()
