@@ -45,9 +45,10 @@ class RegionProposal(nn.Module):
         roi = roi[:pre_nms_top_k]                             # [12000]
         sorted_scores = sorted_scores[:pre_nms_top_k]         # [12000]
         keep_idx = nms(boxes=roi, scores=sorted_scores, iou_threshold=0.7)
+        keep_idx = keep_idx[:post_num_top_k]
         keep = torch.zeros(pre_nms_top_k, dtype=torch.bool)
         keep[keep_idx] = 1                                    # int64 to bool  # [ex)1735 ~ 2000]
-        roi = roi[keep][:post_num_top_k]
+        roi = roi[keep]
         return roi
 
 

@@ -10,6 +10,7 @@ from model.rpn import normal_init
 from model.target_builder import FastRCNNTargetBuilder
 from model.target_builder import RPNTargetBuilder
 import time
+from utils import decode, xy_to_cxcy, cxcy_to_xy
 
 
 class FRCNNHead(nn.Module):
@@ -17,7 +18,7 @@ class FRCNNHead(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self.cls_head = nn.Linear(4096, num_classes)
-        self.reg_head = nn.Linear(4096, 4)
+        self.reg_head = nn.Linear(4096, num_classes * 4)
         self.roi_pool = RoIPool(output_size=(roi_output_size, roi_output_size), spatial_scale=1.)
         self.fc = nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
                                 nn.ReLU(inplace=True),
@@ -65,8 +66,8 @@ class FRCNNHead(nn.Module):
         x = self.fc(x)                                                 # 2000, 4096
         cls = self.cls_head(x)                                         # 2000, 21
         reg = self.reg_head(x)                                         # 2000, 21 * 4
-        frcnn_cls = cls.view(1, -1, self.num_classes)                        # [1, 2000, 21]
-        frcnn_reg = reg.view(1, -1, 4)                    # [1, 2000, 21 * 4]
+        frcnn_cls = cls.view(1, -1, self.num_classes)                  # [1, 2000, 21]
+        frcnn_reg = reg.view(1, -1, 4)                                 # [1, 2000, 21 * 4]
         return frcnn_cls, frcnn_reg
 
 
@@ -107,8 +108,93 @@ class FRCNN(nn.Module):
         # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
         pred_fast_rcnn_cls, pred_fast_rcnn_loc = self.head(features, sample_rois)
 
+        # 각 class 에 대한 값 박스좌표를 모두 예측합
+        pred_fast_rcnn_loc = pred_fast_rcnn_loc.reshape(128, -1, 4)
+        pred_fast_rcnn_loc = pred_fast_rcnn_loc[torch.arange(0, 128), target_fast_rcnn_cls.long()]
+
         return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_loc), \
                (target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc)
+
+    def predict(self, x, bbox, label):
+        # feature extractor
+        features = self.extractor(x)
+        # each image has different anchor
+        anchor = self.anchor_maker._enumerate_shifted_anchor(self.anchor_base, origin_image_size=x.size()[2:])
+        anchor = torch.from_numpy(anchor).to(x.get_device())  # assign device
+        # forward rpn
+        pred_rpn_cls, pred_rpn_reg, rois = self.rpn(features, anchor, mode='test')
+        # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
+        pred_fast_rcnn_cls, pred_fast_rcnn_loc = self.head(features, rois)
+
+        # pred_fast_rcnn_cls : [128, 21]
+        # pred_fast_rcnn_loc : [128, 84] - [128, 21, 4]
+
+        # make pred prob and bbox
+        pred_cls = (torch.softmax(pred_fast_rcnn_cls[0], dim=-1))
+
+        pred_fast_rcnn_loc = pred_fast_rcnn_loc.reshape(-1, 21, 4)  # ex) [184, 21, 4]
+        rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_loc)
+        pred_bbox = decode(pred_fast_rcnn_loc.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))
+        pred_bbox = cxcy_to_xy(pred_bbox)
+
+        pred_bbox = pred_bbox.reshape(-1, 21 * 4)
+        pred_bbox = pred_bbox.clamp(min=0, max=1)
+        bbox, label, score = self._suppress(pred_bbox, pred_cls)
+
+        cv2_vis = False
+        if cv2_vis:
+            import cv2
+            img_height, img_width = x.size()[2:]
+            multiplier = np.array([img_width, img_height, img_width, img_height])
+            bbox *= multiplier
+            print(bbox)
+
+            # 0. permute
+            images = x.cpu()
+            images = images.squeeze(0).permute(1, 2, 0)  # B, C, H, W --> H, W, C
+
+            # 1. un normalization
+            images *= torch.Tensor([0.229, 0.224, 0.225])
+            images += torch.Tensor([0.485, 0.456, 0.406])
+
+            # 2. RGB to BGR
+            image_np = images.numpy()
+
+            x_img = image_np
+            im_show = cv2.cvtColor(x_img, cv2.COLOR_RGB2BGR)
+            for j in range(len(bbox)):
+                cv2.rectangle(im_show,
+                              (int(bbox[j][0]), int(bbox[j][1])),
+                              (int(bbox[j][2]), int(bbox[j][3])),
+                              (0, 0, 255),
+                              1)
+
+            cv2.imshow('result', im_show)
+            cv2.waitKey(0)
+        return bbox, label, score
+
+    def _suppress(self, raw_cls_bbox, raw_prob):
+        from torchvision.ops import nms
+
+        bbox = list()
+        label = list()
+        score = list()
+        # skip cls_id = 0 because it is the background class
+        for l in range(1, 21):
+            cls_bbox_l = raw_cls_bbox.reshape((-1, 21, 4))[:, l, :]
+            prob_l = raw_prob[:, l]
+            mask = prob_l > 0.05
+            cls_bbox_l = cls_bbox_l[mask]
+            prob_l = prob_l[mask]
+            keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)
+            bbox.append(cls_bbox_l[keep].cpu().numpy())
+            label.append((l - 1) * np.ones((len(keep),)))
+            score.append(prob_l[keep].cpu().numpy())
+
+        bbox = np.concatenate(bbox, axis=0).astype(np.float32)
+        label = np.concatenate(label, axis=0).astype(np.int32)
+        score = np.concatenate(score, axis=0).astype(np.float32)
+        return bbox, label, score
 
 
 if __name__ == '__main__':
