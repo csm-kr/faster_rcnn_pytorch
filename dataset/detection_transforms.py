@@ -24,11 +24,13 @@ def detection_resize(image,
     h = image.size(1)
     w = image.size(2)
 
-    # get aspect ratio.
-    min_size_ = float(min((h, w)))
-    max_size_ = float(max((h, w)))
+    # ----------check get aspect ratio ------------
+    # min_size_ = float(min((h, w)))
+    # max_size_ = float(max((h, w)))
     # aspect_ratio = max_size_ / min_size_
-    # if aspect_ratio > 3:
+    # max = 0
+    # if aspect_ratio > max:
+    #     max = aspect_ratio
     #     print(aspect_ratio)
 
     # 2. get resize size
@@ -57,11 +59,8 @@ def detection_resize(image,
                 ow = int(size * w / h)
             size = (oh, ow)
 
-    # print(size)
-    # rescaled_image = F.resize(image, size)
-    rescaled_image = interpolate(image.unsqueeze(0), size)
+    rescaled_image = F.resize(image, size)
 
-    # new_w, new_h = rescaled_image.size
     new_h, new_w = size
     new_h, new_w = float(new_h), float(new_w)
     old_h, old_w = h, w
@@ -69,12 +68,9 @@ def detection_resize(image,
     ratio_height = new_h / old_h
     ratio_width = new_w / old_w
 
-    # ratios = tuple(float(s) / float(s_orig) for s, s_orig in zip(rescaled_image.size, image.size))
-    # ratio_width, ratio_height = ratios
     scaled_boxes = boxes * torch.as_tensor([ratio_width, ratio_height, ratio_width, ratio_height]).unsqueeze(0)
     if box_normalization:
         scaled_boxes /= torch.as_tensor([new_w, new_h, new_w, new_h]).unsqueeze(0)
-
     return rescaled_image.squeeze(0), scaled_boxes, labels
 
 

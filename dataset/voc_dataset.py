@@ -202,6 +202,10 @@ class VOC_Dataset(data.Dataset):
 
         for obj in root.iter("object"):
 
+            if int(obj.find('difficult').text) == 1:
+                # difficult.append(int(obj.find('difficult').text))
+                continue
+
             # 'name' tag 에서 멈추기
             name = obj.find('./name')
             class_name = name.text.lower().strip()
