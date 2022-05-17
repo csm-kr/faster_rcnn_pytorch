@@ -18,8 +18,8 @@ class RPNLoss(nn.Module):
     def __init__(self):
         super().__init__()
         self.cross_entropy_loss = nn.CrossEntropyLoss(ignore_index=-1, reduction='mean')
-        self.smooth_l1_loss = SmoothL1Loss(3)
-        # self.rpn_lambda = 10
+        self.smooth_l1_loss = SmoothL1Loss(beta=1/9)
+        self.rpn_lambda = 10
 
     def forward(self, pred_cls, pred_loc, target_cls, target_loc):
 
@@ -29,10 +29,10 @@ class RPNLoss(nn.Module):
         rpn_cls_loss = self.cross_entropy_loss(pred_cls.squeeze(0), target_cls)
         rpn_loc_loss = self.smooth_l1_loss(pred_loc.squeeze(0)[target_cls > 0], target_loc[target_cls > 0])
 
-        # FIXME
-        # N_reg = target_cls.size(0) // 9
-        # self.rpn_lambda * (rpn_loc_loss.sum() / N_reg)
-        rpn_loc_loss = rpn_loc_loss.sum() / [target_cls >= 0].sum()
+        # FIXME : follow the paper
+        N_reg = target_cls.size(0) // 9
+        rpn_loc_loss = self.rpn_lambda * (rpn_loc_loss.sum() / N_reg)
+        # rpn_loc_loss = rpn_loc_loss.sum() / (target_cls >= 0).sum()
 
         return rpn_cls_loss, rpn_loc_loss
 
@@ -54,7 +54,7 @@ class FastRCNNLoss(nn.Module):
 
         # FIXME
         # fast_rcnn_loc_loss = fast_rcnn_loc_loss.mean()
-        fast_rcnn_loc_loss = fast_rcnn_loc_loss.sum() / [target_cls >= 0].sum()
+        fast_rcnn_loc_loss = fast_rcnn_loc_loss.sum() / (target_cls >= 0).sum()
 
         return fast_rcnn_cls_loss, fast_rcnn_loc_loss
 
