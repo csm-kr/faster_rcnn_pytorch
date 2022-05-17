@@ -6,7 +6,7 @@ from config import load_arguments
 from dataset.build import build_dataset
 from model.faster_rcnn import FRCNN
 from loss.faster_rcnn_loss import FRCNNLoss
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import StepLR
 
 # train and test
 from train import train_one_epoch
@@ -47,7 +47,7 @@ def main_worker():
                                 weight_decay=train_config['weight_decay'])
 
     # 8. scheduler
-    scheduler = MultiStepLR(optimizer=optimizer, milestones=[10], gamma=0.1)   # 8, 11
+    scheduler = StepLR(optimizer=optimizer, step_size=9, gamma=0.1)   # 8, 11
 
     for epoch in range(train_config['start_epoch'], train_config['epoch']):
 
