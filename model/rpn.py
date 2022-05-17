@@ -20,7 +20,7 @@ class RegionProposal(nn.Module):
             post_num_top_k = 300
 
         # 1. setting for make roi
-        pred_cls, pred_loc = pred  # [B, anchor, 2] / [B, anchor, 4]
+        pred_cls, pred_loc = pred  # [B, anchor, 2] - [1, 16650, 2] / [B, anchor, 4] - [1, 16650, 4]
 
         # 2. pred to roi
         roi = cxcy_to_xy(decode(pred_loc.squeeze(), xy_to_cxcy(anchor))).clamp(0, 1)       # for batch 1, [67995, 4]
@@ -68,6 +68,7 @@ class RPN(nn.Module):
     def initialize(self):
         for c in self.intermediate_layer.children():
             if isinstance(c, nn.Conv2d):
+                import numpy as np
                 np.random.seed(0)
                 nn.init.normal_(c.weight, std=0.01)
                 nn.init.constant_(c.bias, 0)
@@ -120,6 +121,7 @@ def normal_init(m, mean, stddev, truncated=False):
         if truncated:
             m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean)  # not a perfect approximation
         else:
+            torch.manual_seed(111)
             m.weight.data.normal_(mean, stddev)
             m.bias.data.zero_()
 
