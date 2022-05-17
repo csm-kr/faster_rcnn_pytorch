@@ -48,7 +48,7 @@ def bar_custom(current, total, width=30):
 
 def encode(gt_cxywh, anc_cxywh):
     tg_cxyw = (gt_cxywh[:, :2] - anc_cxywh[:, :2]) / anc_cxywh[:, 2:]
-    tg_wh = torch.exp(gt_cxywh[:, 2:]) * anc_cxywh[:, 2:]
+    tg_wh = torch.log(gt_cxywh[:, 2:] / anc_cxywh[:, 2:])
     return torch.cat([tg_cxyw, tg_wh], dim=1)
 
 
