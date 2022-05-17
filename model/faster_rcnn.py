@@ -21,21 +21,21 @@ class FRCNNHead(nn.Module):
         self.reg_head = nn.Linear(4096, num_classes * 4)
         self.roi_pool = RoIPool(output_size=(roi_output_size, roi_output_size), spatial_scale=1.)
 
-        import torchvision
-        self.fc = torchvision.models.vgg16(True).classifier
-        del self.fc[6]
-        del self.fc[5]
-        del self.fc[2]
+        # import torchvision
+        # self.fc = torchvision.models.vgg16(True).classifier
+        # del self.fc[6]
+        # del self.fc[5]
+        # del self.fc[2]
 
-        # self.fc = nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
-        #                         nn.ReLU(inplace=True),
-        #                         nn.Linear(4096, 4096),
-        #                         nn.ReLU(inplace=True)
-        #                         )
+        self.fc = nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
+                                nn.ReLU(inplace=True),
+                                nn.Linear(4096, 4096),
+                                nn.ReLU(inplace=True)
+                                )
 
         normal_init(self.cls_head, 0, 0.01)
-        normal_init(self.reg_head, 0, 0.001)
-        # normal_init(self.fc, 0, 0.01)
+        normal_init(self.reg_head, 0, 0.01)
+        normal_init(self.fc, 0, 0.01)
 
     def initialize(self):
 
@@ -102,27 +102,28 @@ class FRCNN(nn.Module):
         anchor = torch.from_numpy(anchor).to(x.get_device())  # assign device
 
         # make target for rpn
-        target_rpn_cls, target_rpn_loc = self.rpn_target_builder.build_rpn_target(bbox=bbox,
+        target_rpn_cls, target_rpn_reg = self.rpn_target_builder.build_rpn_target(bbox=bbox,
                                                                                   anchor=anchor)
         # forward rpn
         pred_rpn_cls, pred_rpn_reg, rois = self.rpn(features, anchor, mode='train')
 
 
         # make target for fast rcnn
-        target_fast_rcnn_cls, target_fast_rcnn_loc, sample_rois = self.fast_rcnn_target_builder.build_fast_rcnn_target(bbox=bbox,
+        target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.fast_rcnn_target_builder.build_fast_rcnn_target(bbox=bbox,
                                                                                                                        label=label,
                                                                                                                        rois=rois)
         # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
-        pred_fast_rcnn_cls, pred_fast_rcnn_loc = self.head(features, sample_rois)
+        pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.head(features, sample_rois)
 
         # 각 class 에 대한 값 박스좌표를 모두 예측합
-        pred_fast_rcnn_loc = pred_fast_rcnn_loc.reshape(128, -1, 4)
-        pred_fast_rcnn_loc = pred_fast_rcnn_loc[torch.arange(0, 128), target_fast_rcnn_cls.long()]
+        # print(pred_fast_rcnn_reg.size()) must be bigger than 128
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(128, -1, 4)
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128), target_fast_rcnn_cls.long()]
 
-        return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_loc), \
-               (target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc)
+        return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
+               (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg)
 
-    def predict(self, x):
+    def predict(self, x, visualization=False):
         # feature extractor
         features = self.extractor(x)
         # each image has different anchor
@@ -131,30 +132,30 @@ class FRCNN(nn.Module):
         # forward rpn
         pred_rpn_cls, pred_rpn_reg, rois = self.rpn(features, anchor, mode='test')
         # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
-        pred_fast_rcnn_cls, pred_fast_rcnn_loc = self.head(features, rois)
+        pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.head(features, rois)
 
         # pred_fast_rcnn_cls : [128, 21]
-        # pred_fast_rcnn_loc : [128, 84] - [128, 21, 4]
+        # pred_fast_rcnn_reg : [128, 84] - [128, 21, 4]
 
         # make pred prob and bbox
         pred_cls = (torch.softmax(pred_fast_rcnn_cls[0], dim=-1))
 
-        pred_fast_rcnn_loc = pred_fast_rcnn_loc.reshape(-1, 21, 4)  # ex) [184, 21, 4]
-        rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_loc)
-        pred_bbox = decode(pred_fast_rcnn_loc.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, 21, 4)  # ex) [184, 21, 4]
+        rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_reg)
+        pred_bbox = decode(pred_fast_rcnn_reg.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))
         pred_bbox = cxcy_to_xy(pred_bbox)
 
         pred_bbox = pred_bbox.reshape(-1, 21 * 4)
         pred_bbox = pred_bbox.clamp(min=0, max=1)
         bbox, label, score = self._suppress(pred_bbox, pred_cls)
 
-        cv2_vis = False
+        cv2_vis = visualization
         if cv2_vis:
             import cv2
             img_height, img_width = x.size()[2:]
             multiplier = np.array([img_width, img_height, img_width, img_height])
             bbox *= multiplier
-            print(bbox)
+            # print(bbox)
 
             # 0. permute
             images = x.cpu()
@@ -252,19 +253,19 @@ if __name__ == '__main__':
     # label =
     tic = time.time()
     frcnn = FRCNN().cuda()
-    (pred_rpn_cls, pred_rpn_reg, pred_fast_cls, pred_fast_rcnn_loc), \
-    (target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc) = frcnn(img, bbox, label)
+    (pred_rpn_cls, pred_rpn_reg, pred_fast_cls, pred_fast_rcnn_reg), \
+    (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg) = frcnn(img, bbox, label)
 
     print(pred_rpn_cls.size())     # torch.Size([1, 18, 37, 62])
     print(pred_rpn_reg.size())     # torch.Size([1, 18, 37, 62])
     print(pred_fast_cls.size())     # torch.Size([1, 18, 37, 62])
-    print(pred_fast_rcnn_loc.size())     # torch.Size([1, 18, 37, 62])
+    print(pred_fast_rcnn_reg.size())     # torch.Size([1, 18, 37, 62])
 
     print((target_rpn_cls >= 0).sum())     # torch.Size([1, 18, 37, 62])
     # print(target_rpn_cls[target_rpn_cls >= 0].size())     # torch.Size([1, 18, 37, 62])
-    # print(target_rpn_loc[target_rpn_cls >= 0].size())     # torch.Size([1, 36, 37, 62])
+    # print(target_rpn_reg[target_rpn_cls >= 0].size())     # torch.Size([1, 36, 37, 62])
     print(target_rpn_cls.size())     # torch.Size([1, 18, 37, 62])
-    print(target_rpn_loc.size())     # torch.Size([1, 36, 37, 62])
+    print(target_rpn_reg.size())     # torch.Size([1, 36, 37, 62])
     print(target_fast_rcnn_cls.size())   # torch.Size([1, 1988, 21])
-    print(target_fast_rcnn_loc.size())   # torch.Size([1, 1988, 4])
+    print(target_fast_rcnn_reg.size())   # torch.Size([1, 1988, 4])
 

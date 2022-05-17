@@ -4,7 +4,7 @@ train:
   batch_size: 1
   weight_decay: 0.0001
   start_epoch: 0
-  port: 8097
+  port: 8098
   save_path: './saves'
   device:
     - 0

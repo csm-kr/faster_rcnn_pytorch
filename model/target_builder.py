@@ -22,14 +22,14 @@ class FastRCNNTargetBuilder(nn.Module):
         fast_rcnn_tg_cls = label[IoU_argmax] + 1
 
         # n_pos = 32 or IoU 0.5 이상
-        n_pos = int(min((IoU_max > 0.5).sum(), 32))
+        n_pos = int(min((IoU_max >= 0.5).sum(), 32))
 
         # random select pos and neg indices
         # pos_indices = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
         # perm = torch.randperm(pos_indices.size(0))
         # pos_indices = pos_indices[perm[:n_pos]]
         import numpy as np
-        np.random.seed(111)
+        # np.random.seed(111)
         pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5].cpu().numpy()
         if pos_index.size > 0:
             pos_index = np.random.choice(pos_index, size=n_pos, replace=False)
@@ -40,10 +40,11 @@ class FastRCNNTargetBuilder(nn.Module):
         # neg_indices = neg_indices[perm[:n_neg]]
 
         neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)].cpu().numpy()
-        n_remnant_length = int(min(128 - n_pos, neg_index.size))
+        # n_remnant_length = int(min(128 - n_pos, neg_index.size))
         if neg_index.size > 0:
-            np.random.seed(111)
-            neg_index = np.random.choice(neg_index, size=n_remnant_length, replace=False)
+            print(neg_index.size)
+            # np.random.seed(111)
+            neg_index = np.random.choice(neg_index, size=128 - n_pos, replace=False)
 
         assert n_neg + n_pos == 128
 
@@ -56,8 +57,8 @@ class FastRCNNTargetBuilder(nn.Module):
         #
         # # make roi
         # sample_rois = rois[keep_indices, :]
-        # # make fast rcnn loc
-        # fast_rcnn_tg_loc = encode(xy_to_cxcy(bbox[IoU_argmax][keep_indices]), xy_to_cxcy(sample_rois))
+        # # make fast rcnn reg
+        # fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_indices]), xy_to_cxcy(sample_rois))
 
         keep_index = np.concatenate([pos_index, neg_index], axis=-1)
 
@@ -69,9 +70,10 @@ class FastRCNNTargetBuilder(nn.Module):
 
         # make roi
         sample_rois = rois[keep_index, :]
-        # make LOC target
-        fast_rcnn_tg_loc = encode(xy_to_cxcy(bbox[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
-        return fast_rcnn_tg_cls, fast_rcnn_tg_loc, sample_rois
+        # make REG target
+        fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
+
+        return fast_rcnn_tg_cls, fast_rcnn_tg_reg, sample_rois
 
 
 class RPNTargetBuilder(nn.Module):
@@ -141,7 +143,6 @@ class RPNTargetBuilder(nn.Module):
         # 3. bbox encoding
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
 
-        rpn_tg_loc = tg_cxywh
         # 4. pad label and bbox for ignore label
         pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=bbox.get_device())
         keep_indices = torch.arange(len(anchor_keep))[anchor_keep]
@@ -150,7 +151,7 @@ class RPNTargetBuilder(nn.Module):
 
         pad_bbox = torch.zeros([len(anchor_keep), 4], dtype=torch.float32, device=bbox.get_device())
         pad_bbox[keep_indices] = tg_cxywh
-        rpn_tg_loc = pad_bbox
+        rpn_tg_reg = pad_bbox
 
-        # The size of rpn_tg_cls / rpn_tg_loc : [16650] / [16650, 4]
-        return rpn_tg_cls, rpn_tg_loc
+        # The size of rpn_tg_cls / rpn_tg_reg : [16650] / [16650, 4]
+        return rpn_tg_cls, rpn_tg_reg

@@ -8,7 +8,7 @@ from evaluation.evaluator import Evaluator
 
 
 @ torch.no_grad()
-def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts):
+def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts, visualization=False):
 
     # 0. evaluator
     evaluator = Evaluator(data_type='voc')
@@ -35,7 +35,7 @@ def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts):
         labels = [l.to(device) for l in labels]
 
         # 3. forward(predict)
-        pred_bboxes, pred_labels, pred_scores = model.predict(images)
+        pred_bboxes, pred_labels, pred_scores = model.predict(images, visualization)
         eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
 
         # 4. get info for evaluation

@@ -51,7 +51,7 @@ def main_worker():
 
     for epoch in range(train_config['start_epoch'], train_config['epoch']):
 
-        # 9. training
+        # 9. train one epoch
         train_one_epoch(epoch=epoch,
                         device=device,
                         vis=vis,
@@ -62,9 +62,7 @@ def main_worker():
                         scheduler=scheduler,
                         opts=train_config)
 
-        scheduler.step()
-
-        # 10. test/evaluation
+        # 10. test and evaluation
         test_and_eval(epoch=epoch,
                       device=device,
                       vis=vis,
@@ -72,6 +70,8 @@ def main_worker():
                       model=model,
                       criterion=criterion,
                       opts=train_config)
+
+        scheduler.step()
 
 
 if __name__ == '__main__':

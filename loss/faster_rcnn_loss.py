@@ -21,20 +21,18 @@ class RPNLoss(nn.Module):
         self.smooth_l1_loss = SmoothL1Loss(beta=1/9)
         self.rpn_lambda = 10
 
-    def forward(self, pred_cls, pred_loc, target_cls, target_loc):
+    def forward(self, pred_cls, pred_reg, target_cls, target_reg):
 
         # target_cls : [12321] - must be torch.long
-        # target_loc : [12321, 4]
+        # target_reg : [12321, 4]
 
         rpn_cls_loss = self.cross_entropy_loss(pred_cls.squeeze(0), target_cls)
-        rpn_loc_loss = self.smooth_l1_loss(pred_loc.squeeze(0)[target_cls > 0], target_loc[target_cls > 0])
+        rpn_reg_loss = self.smooth_l1_loss(pred_reg.squeeze(0)[target_cls > 0], target_reg[target_cls > 0])
 
         # FIXME : follow the paper
         N_reg = target_cls.size(0) // 9
-        rpn_loc_loss = self.rpn_lambda * (rpn_loc_loss.sum() / N_reg)
-        # rpn_loc_loss = rpn_loc_loss.sum() / (target_cls >= 0).sum()
-
-        return rpn_cls_loss, rpn_loc_loss
+        rpn_reg_loss = self.rpn_lambda * (rpn_reg_loss.sum() / N_reg)
+        return rpn_cls_loss, rpn_reg_loss
 
 
 class FastRCNNLoss(nn.Module):
@@ -43,20 +41,19 @@ class FastRCNNLoss(nn.Module):
         self.cross_entropy_loss = nn.CrossEntropyLoss()
         self.smooth_l1_loss = SmoothL1Loss(1)
 
-    def forward(self, pred_cls, pred_loc, target_cls, target_loc):
+    def forward(self, pred_cls, pred_reg, target_cls, target_reg):
         # pred_cls : [1, 128, 21]
-        # pred_loc : [1, 128, 4]
+        # pred_reg : [1, 128, 4]
         # target_cls : [128] - must be torch.long
-        # target_loc : [128, 4]
+        # target_reg : [128, 4]
 
         fast_rcnn_cls_loss = self.cross_entropy_loss(pred_cls.squeeze(0), target_cls)
-        fast_rcnn_loc_loss = self.smooth_l1_loss(pred_loc.squeeze(0)[target_cls > 0], target_loc[target_cls > 0])
+        fast_rcnn_reg_loss = self.smooth_l1_loss(pred_reg.squeeze(0)[target_cls > 0], target_reg[target_cls > 0])
 
         # FIXME
-        # fast_rcnn_loc_loss = fast_rcnn_loc_loss.mean()
-        fast_rcnn_loc_loss = fast_rcnn_loc_loss.sum() / (target_cls >= 0).sum()
+        fast_rcnn_reg_loss = fast_rcnn_reg_loss.sum() / (target_cls >= 0).sum()
 
-        return fast_rcnn_cls_loss, fast_rcnn_loc_loss
+        return fast_rcnn_cls_loss, fast_rcnn_reg_loss
 
 
 class FRCNNLoss(torch.nn.Module):
@@ -67,15 +64,19 @@ class FRCNNLoss(torch.nn.Module):
 
     def forward(self, pred, target):
 
-        pred_rpn_cls, pred_rpn_loc, pred_fast_rcnn_cls, pred_fast_rcnn_loc = pred
-        target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc = target
+        pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg = pred
+        target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg = target
 
-        rpn_cls_loss, rpn_loc_loss = self.rpn_loss(pred_rpn_cls, pred_rpn_loc, target_rpn_cls, target_rpn_loc)
-        fast_rcnn_cls_loss, fast_rcnn_loc_loss = self.fast_rcnn_loss(pred_fast_rcnn_cls, pred_fast_rcnn_loc,
-                                                                     target_fast_rcnn_cls, target_fast_rcnn_loc)
+        # bbox normalization
+        # target_fast_rcnn_loc *= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(target_fast_rcnn_reg))
+        # target_rpn_loc *= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(target_fast_rcnn_reg))
 
-        total_loss = rpn_cls_loss + rpn_loc_loss + fast_rcnn_cls_loss + fast_rcnn_loc_loss
-        return total_loss, rpn_cls_loss, rpn_loc_loss, fast_rcnn_cls_loss, fast_rcnn_loc_loss
+        rpn_cls_loss, rpn_reg_loss = self.rpn_loss(pred_rpn_cls, pred_rpn_reg, target_rpn_cls, target_rpn_reg)
+        fast_rcnn_cls_loss, fast_rcnn_reg_loss = self.fast_rcnn_loss(pred_fast_rcnn_cls, pred_fast_rcnn_reg,
+                                                                     target_fast_rcnn_cls, target_fast_rcnn_reg)
+
+        total_loss = rpn_cls_loss + rpn_reg_loss + fast_rcnn_cls_loss + fast_rcnn_reg_loss
+        return total_loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss
 
 
 if __name__ == '__main__':
@@ -109,27 +110,27 @@ if __name__ == '__main__':
     tic = time.time()
     frcnn = FRCNN().cuda()
     pred, target = frcnn(img, bbox, label)
-    pred_rpn_cls, pred_rpn_reg, pred_fast_cls, pred_fast_rcnn_loc = pred
-    target_rpn_cls, target_rpn_loc, target_fast_rcnn_cls, target_fast_rcnn_loc = target
+    pred_rpn_cls, pred_rpn_reg, pred_fast_cls, pred_fast_rcnn_reg = pred
+    target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg = target
 
     print(pred_rpn_cls.size())     # torch.Size([1, 18, 37, 62])
     print(pred_rpn_reg.size())     # torch.Size([1, 18, 37, 62])
     print(pred_fast_cls.size())     # torch.Size([1, 18, 37, 62])
-    print(pred_fast_rcnn_loc.size())     # torch.Size([1, 18, 37, 62])
+    print(pred_fast_rcnn_reg.size())     # torch.Size([1, 18, 37, 62])
 
     print((target_rpn_cls >= 0).sum())     # torch.Size([1, 18, 37, 62])
     # print(target_rpn_cls[target_rpn_cls >= 0].size())     # torch.Size([1, 18, 37, 62])
-    # print(target_rpn_loc[target_rpn_cls >= 0].size())     # torch.Size([1, 36, 37, 62])
+    # print(target_rpn_reg[target_rpn_cls >= 0].size())     # torch.Size([1, 36, 37, 62])
     print(target_rpn_cls.size())     # torch.Size([1, 18, 37, 62])
-    print(target_rpn_loc.size())     # torch.Size([1, 36, 37, 62])
+    print(target_rpn_reg.size())     # torch.Size([1, 36, 37, 62])
     print(target_fast_rcnn_cls.size())   # torch.Size([1, 1988, 21])
-    print(target_fast_rcnn_loc.size())   # torch.Size([1, 1988, 4])
+    print(target_fast_rcnn_reg.size())   # torch.Size([1, 1988, 4])
 
     criterion = FRCNNLoss()
-    loss, rpn_cls_loss, rpn_loc_loss, fast_rcnn_cls_loss, fast_rcnn_loc_loss = criterion(pred, target)
+    loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss = criterion(pred, target)
     print("total_loss :", loss)
     print("rpn_cls_loss :", rpn_cls_loss)
-    print("rpn_loc_loss :", rpn_loc_loss)
+    print("rpn_reg_loss :", rpn_reg_loss)
     print("fast_rcnn_cls_loss :", fast_rcnn_cls_loss)
-    print("fast_rcnn_loc_loss :", fast_rcnn_loc_loss)
+    print("fast_rcnn_reg_loss :", fast_rcnn_reg_loss)
 

@@ -20,7 +20,7 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
         labels = [l.to(device) for l in labels]
 
         pred, target = model(images, boxes, labels)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
-        loss, rpn_cls_loss, rpn_loc_loss, fast_rcnn_cls_loss, fast_rcnn_loc_loss = criterion(pred, target)
+        loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss = criterion(pred, target)
 
         # sgd
         optimizer.zero_grad()
@@ -45,16 +45,16 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
                   .format(epoch, idx, len(train_loader),
                           loss=loss,
                           rpn_cls_loss=rpn_cls_loss,
-                          rpn_reg_loss=rpn_loc_loss,
+                          rpn_reg_loss=rpn_reg_loss,
                           fast_rcnn_cls_loss=fast_rcnn_cls_loss,
-                          fast_rcnn_reg_loss=fast_rcnn_loc_loss,
+                          fast_rcnn_reg_loss=fast_rcnn_reg_loss,
                           lr=lr,
                           time=toc - tic))
 
             if vis is not None:
                 # loss plot
                 vis.line(X=torch.ones((1, 5)).cpu() * idx + epoch * train_loader.__len__(),  # step
-                         Y=torch.Tensor([loss, rpn_cls_loss, rpn_loc_loss, fast_rcnn_cls_loss, fast_rcnn_loc_loss]).unsqueeze(0).cpu(),
+                         Y=torch.Tensor([loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss]).unsqueeze(0).cpu(),
                          win='train_loss',
                          update='append',
                          opts=dict(xlabel='step',
