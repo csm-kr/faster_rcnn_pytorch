@@ -68,8 +68,8 @@ class FRCNNLoss(torch.nn.Module):
         target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg = target
 
         # bbox normalization
-        # target_fast_rcnn_loc *= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(target_fast_rcnn_reg))
-        # target_rpn_loc *= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(target_fast_rcnn_reg))
+        # target_fast_rcnn_reg /= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(target_fast_rcnn_reg))
+        # target_rpn_reg *= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(target_fast_rcnn_reg))
 
         rpn_cls_loss, rpn_reg_loss = self.rpn_loss(pred_rpn_cls, pred_rpn_reg, target_rpn_cls, target_rpn_reg)
         fast_rcnn_cls_loss, fast_rcnn_reg_loss = self.fast_rcnn_loss(pred_fast_rcnn_cls, pred_fast_rcnn_reg,

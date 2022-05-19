@@ -21,21 +21,21 @@ class FRCNNHead(nn.Module):
         self.reg_head = nn.Linear(4096, num_classes * 4)
         self.roi_pool = RoIPool(output_size=(roi_output_size, roi_output_size), spatial_scale=1.)
 
-        # import torchvision
-        # self.fc = torchvision.models.vgg16(True).classifier
-        # del self.fc[6]
-        # del self.fc[5]
-        # del self.fc[2]
+        import torchvision
+        self.fc = torchvision.models.vgg16(True).classifier
+        del self.fc[6]
+        del self.fc[5]
+        del self.fc[2]
 
-        self.fc = nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
-                                nn.ReLU(inplace=True),
-                                nn.Linear(4096, 4096),
-                                nn.ReLU(inplace=True)
-                                )
+        # self.fc = nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
+        #                         nn.ReLU(inplace=True),
+        #                         nn.Linear(4096, 4096),
+        #                         nn.ReLU(inplace=True)
+        #                         )
 
-        normal_init(self.cls_head, 0, 0.01)
+        normal_init(self.cls_head, 0, 0.001)
         normal_init(self.reg_head, 0, 0.01)
-        normal_init(self.fc, 0, 0.01)
+        # normal_init(self.fc, 0, 0.01)
 
     def initialize(self):
 
@@ -116,7 +116,7 @@ class FRCNN(nn.Module):
         pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.head(features, sample_rois)
 
         # 각 class 에 대한 값 박스좌표를 모두 예측합
-        # print(pred_fast_rcnn_reg.size()) must be bigger than 128
+        # print(pred_fast_rcnn_reg.size())  # [1, 2688, 4]
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(128, -1, 4)
         pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128), target_fast_rcnn_cls.long()]
 
