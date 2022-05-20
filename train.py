@@ -21,6 +21,7 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
 
         pred, target = model(images, boxes, labels)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
         loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss = criterion(pred, target)
+        # print(loss)
 
         # sgd
         optimizer.zero_grad()
