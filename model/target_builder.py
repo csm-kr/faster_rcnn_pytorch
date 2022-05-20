@@ -32,6 +32,7 @@ class FastRCNNTargetBuilder(nn.Module):
         # np.random.seed(111)
         pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5].cpu().numpy()
         if pos_index.size > 0:
+            np.random.seed(111)
             pos_index = np.random.choice(pos_index, size=n_pos, replace=False)
 
         n_neg = 128 - n_pos
@@ -43,7 +44,7 @@ class FastRCNNTargetBuilder(nn.Module):
         # n_remnant_length = int(min(128 - n_pos, neg_index.size))
         if neg_index.size > 0:
             # print(neg_index.size)
-            # np.random.seed(111)
+            np.random.seed(111)
             neg_index = np.random.choice(neg_index, size=128 - n_pos, replace=False)
 
         assert n_neg + n_pos == 128

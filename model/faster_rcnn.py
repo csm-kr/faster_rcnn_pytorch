@@ -33,25 +33,8 @@ class FRCNNHead(nn.Module):
         #                         nn.ReLU(inplace=True)
         #                         )
 
-        normal_init(self.cls_head, 0, 0.001)
-        normal_init(self.reg_head, 0, 0.01)
-        # normal_init(self.fc, 0, 0.01)
-
-    def initialize(self):
-
-        for c in self.cls_head.children():
-            if isinstance(c, nn.Linear):
-                nn.init.normal_(c.weight, std=0.01)
-                nn.init.constant_(c.bias, 0)
-
-        for c in self.reg_head.children():
-            if isinstance(c, nn.Linear):
-                nn.init.normal_(c.weight, std=0.01)
-                nn.init.constant_(c.bias, 0)
-        for c in self.fc.children():
-            if isinstance(c, nn.Linear):
-                nn.init.normal_(c.weight, std=0.01)
-                nn.init.constant_(c.bias, 0)
+        normal_init(self.cls_head, 0, 0.01)
+        normal_init(self.reg_head, 0, 0.001)
 
     def forward(self, features, rois):
 
@@ -84,6 +67,12 @@ class FRCNN(nn.Module):
 
         # ** for forward
         self.extractor = nn.Sequential(*list(vgg16(pretrained=True).features.children())[:-1])
+
+        # ** freeze top4 conv
+        for layer in self.extractor[:10]:
+            for p in layer.parameters():
+                p.requires_grad = False
+
         self.rpn = RPN()
         self.rpn_target_builder = RPNTargetBuilder()
         self.fast_rcnn_target_builder = FastRCNNTargetBuilder()
