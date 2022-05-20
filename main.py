@@ -41,10 +41,15 @@ def main_worker():
     criterion = FRCNNLoss()
 
     # 7. optimizer
-    optimizer = torch.optim.SGD(params=model.parameters(),
-                                lr=train_config['lr'],
-                                momentum=0.9,
-                                weight_decay=train_config['weight_decay'])
+    params = []
+    for key, value in dict(model.named_parameters()).items():
+        if value.requires_grad:
+            if 'bias' in key:
+                params += [{'params': [value], 'lr': 0.001 * 2, 'weight_decay': 0}]
+            else:
+                params += [{'params': [value], 'lr': 0.001, 'weight_decay': 0.0005}]
+    optimizer = torch.optim.SGD(params=params,
+                                momentum=0.9)
 
     # 8. scheduler
     scheduler = StepLR(optimizer=optimizer, step_size=9, gamma=0.1)   # 9
