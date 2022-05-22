@@ -73,6 +73,8 @@ class FastRCNNTargetBuilder(nn.Module):
         sample_rois = rois[keep_index, :]
         # make REG target
         fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
+        # normalization bbox
+        # fast_rcnn_tg_reg /= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(fast_rcnn_tg_reg))
 
         return fast_rcnn_tg_cls, fast_rcnn_tg_reg, sample_rois
 

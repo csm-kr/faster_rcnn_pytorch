@@ -129,6 +129,7 @@ class FRCNN(nn.Module):
         # make pred prob and bbox
         pred_cls = (torch.softmax(pred_fast_rcnn_cls[0], dim=-1))
 
+        # pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(pred_fast_rcnn_reg))
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, 21, 4)  # ex) [184, 21, 4]
         rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_reg)
         pred_bbox = decode(pred_fast_rcnn_reg.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))

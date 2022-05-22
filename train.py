@@ -29,8 +29,9 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
         optimizer.step()
 
         toc = time.time()
-        for param_group in optimizer.param_groups:
-            lr = param_group['lr']
+        # for param_group in optimizer.param_groups:
+        #     lr = param_group['lr']
+        lr = optimizer.param_groups[0]['lr']
 
         # for each steps
         if idx % opts['vis_step'] == 0 or idx == len(train_loader) - 1:
