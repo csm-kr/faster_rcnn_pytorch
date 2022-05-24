@@ -17,7 +17,7 @@ class SmoothL1Loss(nn.Module):
 class RPNLoss(nn.Module):
     def __init__(self):
         super().__init__()
-        self.cross_entropy_loss = nn.CrossEntropyLoss(ignore_index=-1, reduction='mean')
+        self.cross_entropy_loss = nn.CrossEntropyLoss(ignore_index=-1)
         self.smooth_l1_loss = SmoothL1Loss(beta=1/9)
         self.rpn_lambda = 10
 
