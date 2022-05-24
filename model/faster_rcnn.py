@@ -17,9 +17,6 @@ class FRCNNHead(nn.Module):
     def __init__(self, num_classes, roi_output_size=7):
         super().__init__()
         self.num_classes = num_classes
-        self.cls_head = nn.Linear(4096, num_classes)
-        self.reg_head = nn.Linear(4096, num_classes * 4)
-        self.roi_pool = RoIPool(output_size=(roi_output_size, roi_output_size), spatial_scale=1.)
 
         import torchvision
         self.fc = torchvision.models.vgg16(True).classifier
@@ -27,14 +24,19 @@ class FRCNNHead(nn.Module):
         del self.fc[5]
         del self.fc[2]
 
+        self.reg_head = nn.Linear(4096, num_classes * 4)
+        self.cls_head = nn.Linear(4096, num_classes)
+
+        self.roi_pool = RoIPool(output_size=(roi_output_size, roi_output_size), spatial_scale=1.)
+
         # self.fc = nn.Sequential(nn.Linear(512 * 7 * 7, 4096),
         #                         nn.ReLU(inplace=True),
         #                         nn.Linear(4096, 4096),
         #                         nn.ReLU(inplace=True)
         #                         )
 
-        normal_init(self.cls_head, 0, 0.01)
         normal_init(self.reg_head, 0, 0.001)
+        normal_init(self.cls_head, 0, 0.01)
 
     def forward(self, features, rois):
 
@@ -42,22 +44,22 @@ class FRCNNHead(nn.Module):
         filtered_rois_numpy = np.array(rois.detach().cpu()).astype(np.float32)
 
         # 3. scale original box w, h to feature w, h
-        filtered_rois_numpy[:, ::2] = filtered_rois_numpy[:, ::2] * features.size(3)
-        filtered_rois_numpy[:, 1::2] = filtered_rois_numpy[:, 1::2] * features.size(2)
+        filtered_rois_numpy[:, ::2] = filtered_rois_numpy[:, ::2] * features.size(3)    # W
+        filtered_rois_numpy[:, 1::2] = filtered_rois_numpy[:, 1::2] * features.size(2)  # H
 
         # 4. convert numpy boxes to list of tensors
         filtered_boxes_tensor = [torch.FloatTensor(filtered_rois_numpy).to(device)]
 
         # --------------- RoI Pooling --------------- #
-        x = self.roi_pool(features, filtered_boxes_tensor)             # [2000, 512, 7, 7]
-        x = x.view(x.size(0), -1)                                      # 2000, 512 * 7 * 7
+        x = self.roi_pool(features, filtered_boxes_tensor)             # [128, 512, 7, 7]
+        x = x.view(x.size(0), -1)                                      # 128, 512 * 7 * 7
 
         # --------------- forward head --------------- #
-        x = self.fc(x)                                                 # 2000, 4096
-        cls = self.cls_head(x)                                         # 2000, 21
-        reg = self.reg_head(x)                                         # 2000, 21 * 4
-        frcnn_cls = cls.view(1, -1, self.num_classes)                  # [1, 2000, 21]
-        frcnn_reg = reg.view(1, -1, 4)                                 # [1, 2000, 21 * 4]
+        x = self.fc(x)                                                 # 128, 4096
+        cls = self.cls_head(x)                                         # 128, 21
+        reg = self.reg_head(x)                                         # 128, 21 * 4
+        frcnn_cls = cls.view(1, -1, self.num_classes)                  # [1, 128, 21]
+        frcnn_reg = reg.view(1, -1, 4)                                 # [1, 128 * 21, 4]
         return frcnn_cls, frcnn_reg
 
 
@@ -95,7 +97,7 @@ class FRCNN(nn.Module):
                                                                                   anchor=anchor)
         # forward rpn
         pred_rpn_cls, pred_rpn_reg, rois = self.rpn(features, anchor, mode='train')
-
+        print(rois.size())
 
         # make target for fast rcnn
         target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.fast_rcnn_target_builder.build_fast_rcnn_target(bbox=bbox,
@@ -105,9 +107,9 @@ class FRCNN(nn.Module):
         pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.head(features, sample_rois)
 
         # 각 class 에 대한 값 박스좌표를 모두 예측합
-        # print(pred_fast_rcnn_reg.size())  # [1, 2688, 4]
-        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(128, -1, 4)
-        pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128), target_fast_rcnn_cls.long()]
+        # print(pred_fast_rcnn_reg.size())  # [1, 2688, 4] = [1, 128 * 21, 4]
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg.view(128, -1, 4)
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128).long(), target_fast_rcnn_cls.long()]
 
         return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
                (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg)
@@ -127,9 +129,9 @@ class FRCNN(nn.Module):
         # pred_fast_rcnn_reg : [128, 84] - [128, 21, 4]
 
         # make pred prob and bbox
-        pred_cls = (torch.softmax(pred_fast_rcnn_cls[0], dim=-1))
+        pred_cls = (torch.softmax(pred_fast_rcnn_cls[0], dim=-1))  # batch 없애는 부분
 
-        # pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(pred_fast_rcnn_reg))
+        # pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.2, 0.2, 0.4, 0.4]).to(torch.get_device(pred_fast_rcnn_reg))
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, 21, 4)  # ex) [184, 21, 4]
         rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_reg)
         pred_bbox = decode(pred_fast_rcnn_reg.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))

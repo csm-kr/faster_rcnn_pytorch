@@ -8,6 +8,8 @@ class FastRCNNTargetBuilder(nn.Module):
         super().__init__()
 
     def build_fast_rcnn_target(self, bbox, label, rois):
+
+        rois = torch.from_numpy(rois).to(bbox[0][0].get_device())
         # 1. concatenate bbox and roi -
         # remove the list for batch
         bbox = bbox[0]
@@ -15,6 +17,7 @@ class FastRCNNTargetBuilder(nn.Module):
 
         # 무조건 나오는 roi를 만들기 위해서 와 bbox를 concat 한다.
         rois = torch.cat([rois, bbox], dim=0)
+        # print(rois.size())
         iou = find_jaccard_overlap(rois, bbox)  # [2000 + num_obj, num objects]
         IoU_max, IoU_argmax = iou.max(dim=1)
 
@@ -25,43 +28,34 @@ class FastRCNNTargetBuilder(nn.Module):
         n_pos = int(min((IoU_max >= 0.5).sum(), 32))
 
         # random select pos and neg indices
-        # pos_indices = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
-        # perm = torch.randperm(pos_indices.size(0))
-        # pos_indices = pos_indices[perm[:n_pos]]
+        # pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
+        # perm = torch.randperm(pos_index.size(0))
+        # pos_index = pos_index[perm[:n_pos]]
+
         import numpy as np
-        # np.random.seed(111)
         pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5].cpu().numpy()
         if pos_index.size > 0:
             np.random.seed(111)
             pos_index = np.random.choice(pos_index, size=n_pos, replace=False)
 
         n_neg = 128 - n_pos
-        # neg_indices = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
-        # perm = torch.randperm(neg_indices.size(0))
-        # neg_indices = neg_indices[perm[:n_neg]]
 
         neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)].cpu().numpy()
-        # n_remnant_length = int(min(128 - n_pos, neg_index.size))
         if neg_index.size > 0:
             # print(neg_index.size)
             np.random.seed(111)
             neg_index = np.random.choice(neg_index, size=128 - n_pos, replace=False)
 
+        # neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
+        # perm = torch.randperm(neg_index.size(0))
+        # neg_index = neg_index[perm[:n_neg]]
+
         assert n_neg + n_pos == 128
 
-        # # keep indices
-        # keep_indices = torch.cat([pos_indices, neg_indices], dim=-1)
-        # fast_rcnn_tg_cls = fast_rcnn_tg_cls[keep_indices]
-        # # set negative indices background label
-        # fast_rcnn_tg_cls[n_pos:] = 0
-        # fast_rcnn_tg_cls = fast_rcnn_tg_cls.type(torch.long)
-        #
-        # # make roi
-        # sample_rois = rois[keep_indices, :]
-        # # make fast rcnn reg
-        # fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_indices]), xy_to_cxcy(sample_rois))
-
+        import numpy as np
         keep_index = np.concatenate([pos_index, neg_index], axis=-1)
+
+        # keep_index = torch.cat([pos_index, neg_index], dim=-1)
 
         # make CLS target
         fast_rcnn_tg_cls = fast_rcnn_tg_cls[keep_index]
@@ -73,8 +67,12 @@ class FastRCNNTargetBuilder(nn.Module):
         sample_rois = rois[keep_index, :]
         # make REG target
         fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
+
         # normalization bbox
-        # fast_rcnn_tg_reg /= torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(fast_rcnn_tg_reg))
+        device = torch.get_device(fast_rcnn_tg_reg)
+        mean = torch.FloatTensor([0., 0., 0., 0.]).to(device)
+        std = torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(device)
+        fast_rcnn_tg_reg = (fast_rcnn_tg_reg - mean) / std
 
         return fast_rcnn_tg_cls, fast_rcnn_tg_reg, sample_rois
 
@@ -87,6 +85,8 @@ class RPNTargetBuilder(nn.Module):
         '''
         bbox : list of tensor [tensor]
         '''
+        anchor = torch.from_numpy(anchor).to(bbox[0][0].get_device())
+
         # 1. anchor cross boundary 만 걸러내기
         bbox = bbox[0]  # remove the list for batch : shape [num_obj, 4]
         anchor_keep = ((anchor[:, 0] >= 0) & (anchor[:, 1] >= 0) & (anchor[:, 2] <= 1) & (anchor[:, 3] <= 1))
