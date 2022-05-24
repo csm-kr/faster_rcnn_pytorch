@@ -19,7 +19,7 @@ def build_dataset(data_config):
     transform_train = det_transforms.DetCompose([
         # ------------- for Tensor augmentation -------------
         # det_transforms.DetRandomPhotoDistortion(),
-        det_transforms.DetRandomHorizontalFlip(),
+        det_transforms.DetRandomHorizontalFlip(p=0.),
         det_transforms.DetToTensor(),
         # ------------- for Tensor augmentation -------------
         # det_transforms.DetRandomZoomOut(max_scale=3),
@@ -52,7 +52,7 @@ def build_dataset(data_config):
         train_loader = DataLoader(train_set,
                                   batch_size=data_config['batch_size'],
                                   collate_fn=train_set.collate_fn,
-                                  shuffle=True,
+                                  shuffle=False,
                                   num_workers=data_config['num_workers'],
                                   pin_memory=True)
 
