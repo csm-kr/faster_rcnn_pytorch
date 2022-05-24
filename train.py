@@ -9,7 +9,8 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
     model.train()
 
     for idx, data in enumerate(train_loader):
-
+        if idx in [99]:
+            print(idx)
         # set image and GT
         images = data[0]
         boxes = data[1]
