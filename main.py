@@ -5,6 +5,7 @@ from config import load_arguments
 # dataset / model / loss
 from dataset.build import build_dataset
 from model.faster_rcnn import FRCNN
+from test_model import FasterRCNNVGG16
 from loss.faster_rcnn_loss import FRCNNLoss
 from torch.optim.lr_scheduler import StepLR
 
@@ -34,7 +35,8 @@ def main_worker():
     train_loader, test_loader = build_dataset(data_config)
 
     # 5. model
-    model = FRCNN()
+    # model = FRCNN()
+    model = FasterRCNNVGG16()
     model = model.to(device)
 
     # 6. loss
@@ -51,8 +53,13 @@ def main_worker():
     optimizer = torch.optim.SGD(params=params,
                                 momentum=0.9)
 
+    # optimizer = torch.optim.SGD(params=model.parameters(),
+    #                             lr=0.001,
+    #                             momentum=0.9,
+    #                             weight_decay=0.0005)
+
     # 8. scheduler
-    scheduler = StepLR(optimizer=optimizer, step_size=9, gamma=0.1)   # 9
+    scheduler = StepLR(optimizer=optimizer, step_size=8, gamma=0.1)   # 9
 
     for epoch in range(train_config['start_epoch'], train_config['epoch']):
 
@@ -74,7 +81,8 @@ def main_worker():
                       test_loader=test_loader,
                       model=model,
                       criterion=criterion,
-                      opts=train_config)
+                      opts=train_config,
+                      visualization=False)
 
         scheduler.step()
 
