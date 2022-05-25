@@ -92,8 +92,12 @@ class RegionProposalNetwork(nn.Module):
         rpn_softmax_scores = torch.softmax(rpn_scores.view(n, hh, ww, n_anchor, 2), dim=4)
         rpn_fg_scores = rpn_softmax_scores[:, :, :, :, 1].contiguous()
         rpn_fg_scores = rpn_fg_scores.view(n, -1)
+        # rpn_softmax_scores = torch.softmax(rpn_scores.view(n, -1, 2), dim=-1)[..., 1]
+
 
         rpn_scores = rpn_scores.view(n, -1, 2)
+
+        # ------------------------------
 
         rois = list()
         roi_indices = list()
