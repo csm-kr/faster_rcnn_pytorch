@@ -77,6 +77,7 @@ class RegionProposalNetwork(nn.Module):
         # 1. base를 이용해서 anchor 만들기
         anchor = self.anchor_maker._enumerate_shifted_anchor(anchor_base=np.array(self.anchor_maker.generate_anchor_base(), dtype=np.float32),
                                                              origin_image_size=img_size)  # H, W
+        anchor = torch.from_numpy(anchor).to(x.get_device())
         # anchor = np.round(anchor, 4)
         n_anchor = anchor.shape[0] // (hh * ww)
 
@@ -93,8 +94,6 @@ class RegionProposalNetwork(nn.Module):
         rpn_fg_scores = rpn_softmax_scores[:, :, :, :, 1].contiguous()
         rpn_fg_scores = rpn_fg_scores.view(n, -1)
         # rpn_softmax_scores = torch.softmax(rpn_scores.view(n, -1, 2), dim=-1)[..., 1]
-
-
         rpn_scores = rpn_scores.view(n, -1, 2)
 
         # ------------------------------
@@ -244,7 +243,7 @@ class FasterRCNNVGG16(nn.Module):
                                                                                                                        rois=rois)
         # forward frcnn (frcnn을 forward 하려면 sampled roi (bbox가 필요하기에 여기서 만듦)
         sample_roi_index = torch.zeros(len(sample_rois))
-        pred_fast_rcnn_reg, pred_fast_rcnn_cls  = self.head(features, sample_rois, sample_roi_index)
+        pred_fast_rcnn_reg, pred_fast_rcnn_cls = self.head(features, sample_rois, sample_roi_index)
 
         # 각 class 에 대한 값 박스좌표를 모두 예측합
         # print(pred_fast_rcnn_reg.size())  # [1, 2688, 4] = [1, 128 * 21, 4]
@@ -285,7 +284,7 @@ class ProposalCreator:
             pre_nms_top_k = 6000
             post_num_top_k = 300
 
-        anchor_tensor = torch.from_numpy(anchor)
+        anchor_tensor = anchor
         from utils import xy_to_cxcy, decode, encode, cxcy_to_xy
         roi_tensor = cxcy_to_xy(decode(loc, xy_to_cxcy(anchor_tensor.to(loc.get_device())))).clamp(0, 1)
 
@@ -337,21 +336,24 @@ class VGG16RoIHead(nn.Module):
 
     def forward(self, x, rois, roi_indices):
         # in case roi_indices is  ndarray
+        f_height, f_width = x.size()[2:]
         roi_indices = totensor(roi_indices).float()
         rois = totensor(rois).float()
-        indices_and_rois = torch.cat([roi_indices[:, None], rois], dim=1)
-        # NOTE: important: yx->xy
-        # xy_indices_and_rois = indices_and_rois[:, [0, 2, 1, 4, 3]]
-        xy_indices_and_rois = indices_and_rois
-        indices_and_rois = xy_indices_and_rois.contiguous()
 
+        # indices_and_rois = torch.cat([roi_indices[:, None], rois], dim=1)
+        # xy_indices_and_rois = indices_and_rois
+        # indices_and_rois = xy_indices_and_rois.contiguous()
         # roi_pooling 사용시, feature 의 size 를 맞춰 주어야 하기 때문에
-        f_height, f_width = x.size()[2:]
+        # roi_to_feature_scale = np.array([1., f_width, f_height, f_width, f_height])
+        # roi_to_feature_scale = totensor(roi_to_feature_scale).float()
+        # indices_and_rois *= roi_to_feature_scale
+        # pool = self.roi(x, indices_and_rois)
 
-        roi_to_feature_scale = np.array([1., f_width, f_height, f_width, f_height])
-        roi_to_feature_scale = totensor(roi_to_feature_scale).float()
-        indices_and_rois *= roi_to_feature_scale
-        pool = self.roi(x, indices_and_rois)
+        roi_to_feature_scale_ = torch.FloatTensor([f_width, f_height, f_width, f_height]).to(rois.get_device())
+        rois *= roi_to_feature_scale_
+        rois_list = [rois]
+        pool = self.roi(x, rois_list)
+
         pool = pool.view(pool.size(0), -1)
         fc7 = self.classifier(pool)
         roi_cls_locs = self.cls_loc(fc7)
