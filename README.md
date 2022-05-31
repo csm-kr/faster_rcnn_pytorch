@@ -2,18 +2,25 @@
 
 re-implementation of faster rcnn (NIPS2015)
 
+Please refer to https://arxiv.org/abs/1506.01497
+
 ### data set
-- [x] VOC 2007 
+- [x] VOC  
+- [ ] COCO
 
 ### data augmentation (for implementation of original paper)
 - [x] Resize
 - [x] Horizontal Flip
 
+### TRAINING
+- **Use approximate joint training**
+- optimizer : SGD
+- training epoch : 14 
+- initial learning rate 0.001
+
 ### RESULTS
 
 #### 1. qualitative result
-
-Please refer to https://arxiv.org/abs/1506.01497
 
 VOC
 
