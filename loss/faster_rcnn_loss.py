@@ -23,6 +23,9 @@ class RPNLoss(nn.Module):
 
     def forward(self, pred_cls, pred_reg, target_cls, target_reg):
 
+        # pred_cls : [1, 12321, 2] - batch 없애야함
+        # pred_reg : [1, 12321, 4]
+
         # target_cls : [12321] - must be torch.long
         # target_reg : [12321, 4]
 
