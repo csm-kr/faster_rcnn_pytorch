@@ -38,3 +38,8 @@ VOC
 
 #### 2. quantitative result
 
+![000001_input](./figures/000001_.jpg)
+![000001_result](./figures/000001.jpg)
+
+![000015](./figures/000010.jpg)
+![000021](./figures/000021.jpg)
