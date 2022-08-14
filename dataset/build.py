@@ -4,17 +4,10 @@ from dataset.coco_dataset import COCO_Dataset
 import dataset.detection_transforms as det_transforms
 
 
-def build_dataset(data_config):
+def build_dataset(opts):
 
-    if len(data_config['size']) == 2 and data_config['size'][0] != data_config['size'][1]:
-        size = min(data_config['size'])
-        max_size = max(data_config['size'])
-    else:
-        max_size = None
-        if len(data_config['size']) == 1:
-            size = (data_config['size'], data_config['size'])
-        else:
-            size = (data_config['size'][0], data_config['size'][1])
+    size = 600
+    max_size = 1000
 
     transform_train = det_transforms.DetCompose([
         # ------------- for Tensor augmentation -------------
@@ -36,24 +29,24 @@ def build_dataset(data_config):
                                     std=[0.229, 0.224, 0.225])
     ])
 
-    if data_config['data_type'] == 'voc':
-        train_set = VOC_Dataset(data_config['root'],
+    if opts.data_type == 'voc':
+        train_set = VOC_Dataset(opts.root,
                                 split='train',
                                 download=True,
                                 transform=transform_train,
-                                visualization=data_config['visualization'])
+                                visualization=False)
 
-        test_set = VOC_Dataset(data_config['root'],
+        test_set = VOC_Dataset(opts.root,
                                split='test',
                                download=True,
                                transform=transform_test,
-                               visualization=data_config['visualization'])
+                               visualization=False)
 
         train_loader = DataLoader(train_set,
-                                  batch_size=data_config['batch_size'],
+                                  batch_size=opts.batch_size,
                                   collate_fn=train_set.collate_fn,
                                   shuffle=True,
-                                  num_workers=data_config['num_workers'],
+                                  num_workers=opts.num_workers,
                                   pin_memory=True)
 
         test_loader = DataLoader(test_set,

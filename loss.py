@@ -88,10 +88,10 @@ if __name__ == '__main__':
     import time
     from PIL import Image
     import torchvision.transforms as tfs
-    from model.faster_rcnn import FRCNN
+    from model import FRCNN
 
     # 1. load image
-    image = Image.open('../figures/000001.jpg').convert('RGB')
+    image = Image.open('./figures/000001.jpg').convert('RGB')
     # 2. transform image
     transforms = tfs.Compose([tfs.Resize((600, 600)),
                               tfs.ToTensor(),

@@ -13,10 +13,13 @@ Please refer to https://arxiv.org/abs/1506.01497
 - [x] Horizontal Flip
 
 ### TRAINING
+
 - **Use approximate joint training**
 - optimizer : SGD
-- training epoch : 14 
+- epoch : 14 
 - initial learning rate 0.001
+- weight decay : 5e-4
+- momentum : 0.9
 
 ### RESULTS
 

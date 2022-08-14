@@ -10,6 +10,7 @@ class FRCNNAnchorMaker(object):
         self.base_size = base_size
         self.ratios = ratios
         self.anchor_scales = anchor_scales
+        self.anchor_base = self.generate_anchor_base()
 
     def generate_anchor_base(self):
 
@@ -31,7 +32,6 @@ class FRCNNAnchorMaker(object):
         return anchor_base
 
     def _enumerate_shifted_anchor(self,
-                                  anchor_base,
                                   origin_image_size):
 
         origin_height, origin_width = origin_image_size
@@ -44,13 +44,14 @@ class FRCNNAnchorMaker(object):
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shift = np.stack((shift_x.ravel(), shift_y.ravel(), shift_x.ravel(), shift_y.ravel()), axis=1)
 
-        A = anchor_base.shape[0]
+        A = self.anchor_base.shape[0]
         K = shift.shape[0]
-        anchor = anchor_base.reshape((1, A, 4)) + shift.reshape((1, K, 4)).transpose((1, 0, 2))
+        anchor = self.anchor_base.reshape((1, A, 4)) + shift.reshape((1, K, 4)).transpose((1, 0, 2))
         anchor = anchor.reshape((K * A, 4)).astype(np.float32)
 
         divisor = np.array([origin_width, origin_height, origin_width, origin_height])
         anchor /= divisor
+
         return anchor
 
 
@@ -167,7 +168,7 @@ if __name__ == '__main__':
     # print(time.time() - tic)
     for image_size in image_sizes:
         tic = time.time()
-        anchor = frcnn_anchor_maker._enumerate_shifted_anchor(anchor_base=anchor_base, origin_image_size=image_size)
+        anchor = frcnn_anchor_maker._enumerate_shifted_anchor(origin_image_size=image_size)
         anchor = torch.from_numpy(anchor).cuda()
         # n_anchor = anchor.shape[0] / ((image_size[0] // 16) * (image_size[1] // 16))
         # print("num_anchors : ", n_anchor)

@@ -1,53 +1,49 @@
-import yaml
-import torch
 import argparse
 
 
-def load_arguments(yaml_file):
-    with open(yaml_file) as f:
-        config = yaml.safe_load(f)
-    print(config)
-    return config
+def get_args_parser():
+    parser = argparse.ArgumentParser(add_help=False)
+
+    # visualization
+    parser.add_argument('--visdom_port', type=int, default=8098)
+    parser.add_argument('--vis_step', type=int, default=100)
+    parser.add_argument('--save_step', type=int, default=50000)
+
+    # save
+    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--log_dir', type=str, default='./logs')
+
+    # dataset
+    parser.add_argument('--name', type=str, default='faster_rcnn', help='experiment name')   # FIXME
+    parser.add_argument('--root', type=str, default=r'/home/cvmlserver7/Sungmin/data/voc')
+    parser.add_argument('--data_type', type=str, default=r'voc')
+
+    # training
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument('--epoch', type=int, default=14)
+    parser.add_argument('--batch_size', type=int, default=1)
+    parser.add_argument('--num_workers', type=int, default=0)
+    parser.add_argument('--warmup_epoch', type=int, default=1)
+    parser.add_argument('--weight_decay', type=float, default=5e-4)
+    parser.add_argument('--momentum', type=float, default=0.9)
+
+    # testing
+    parser.add_argument('--seed', type=int, default=0)
+    parser.set_defaults(is_test=False)
+    parser.add_argument('--testing', dest='is_test', action='store_true')
+
+    # for multi-gpu
+    parser.add_argument('--gpu_ids', nargs="+", default=['0'])   # usage : --gpu_ids 0, 1, 2, 3
+    parser.add_argument('--rank', type=int, default=0)
+    parser.add_argument('--world_size', type=int, default=1)
+
+    return parser
 
 
 if __name__ == '__main__':
-    load_arguments('./yaml/faster_rcnn_config.yaml')
+    parser = argparse.ArgumentParser('faster rcnn training', parents=[get_args_parser()])
+    opts = parser.parse_args()
 
-# device_ids = [0, 1]
-# device = torch.device('cuda:{}'.format(min(device_ids)) if torch.cuda.is_available() else 'cpu')
-#
-#
-# def parse(args):
-#     # 1. arg parser
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--epoch', type=int, default=13)                  # 13
-#     parser.add_argument('--port', type=str, default='2015')
-#     parser.add_argument('--lr', type=float, default=1e-2)                 # 1e-2
-#     parser.add_argument('--momentum', type=float, default=0.9)
-#     parser.add_argument('--weight_decay', type=float, default=1e-4)       # 0.0001
-#     parser.add_argument('--batch_size', type=int, default=16)
-#     parser.add_argument('--vis_step', type=int, default=100)
-#     parser.add_argument('--num_workers', type=int, default=8)
-#     parser.add_argument('--rank', type=int, default=0)
-#
-#     parser.add_argument('--save_path', type=str, default='./saves')
-#     parser.add_argument('--save_file_name', type=str, default='retina_res_50_coco')                         # FIXME
-#
-#     parser.add_argument('--conf_thres', type=float, default=0.05)
-#     parser.add_argument('--start_epoch', type=int, default=0)
-#
-#     # FIXME choose your dataset root
-#     # parser.add_argument('--data_root', type=str, default='D:\data\\voc')
-#     # parser.add_argument('--data_root', type=str, default='D:\data\coco')
-#     parser.add_argument('--data_root', type=str, default='/home/cvmlserver5/Sungmin/data/coco')
-#     parser.add_argument('--img_path', type=str, default='/home/cvmlserver5/Sungmin/data/coco/images/val2017')
-#
-#     parser.add_argument('--data_type', type=str, default='coco', help='choose voc or coco')              # FIXME
-#     parser.add_argument('--num_classes', type=int, default=80)
-#     parser.add_argument('--resize', type=int, default=600)                                               # FIXME
-#
-#     parser.set_defaults(visualization=False)
-#     parser.add_argument('--vis', dest='visualization', action='store_true')
-#
-#     opts = parser.parse_args(args)
-#     return opts
+    opts.world_size = len(opts.gpu_ids)
+    opts.num_workers = len(opts.gpu_ids) * 4
+    print(opts)

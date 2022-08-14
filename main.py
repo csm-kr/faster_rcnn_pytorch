@@ -1,68 +1,61 @@
+import os
 import torch
 import visdom
-from config import load_arguments
+
+import argparse
+from config import get_args_parser
 
 # dataset / model / loss
 from dataset.build import build_dataset
-from my_model import FRCNN
-from test_model import FasterRCNNVGG16
-from loss.faster_rcnn_loss import FRCNNLoss
+from model import FRCNN
+from loss import FRCNNLoss
 from torch.optim.lr_scheduler import StepLR
 
 # train and test
 from train import train_one_epoch
 from test import test_and_eval
 
+# log
+from log import XLLogSaver
 
-def main_worker():
+
+def main_worker(rank, opts):
     # 1. config
-    yaml_file = './yaml/faster_rcnn_config.yaml'
-    config = load_arguments(yaml_file)
-
-    # configuration with yaml
-    train_config = config['train']
-    data_config = config['data']
-    model_config = config['model']
+    print(opts)
 
     # 2. device
-    device_ids = train_config['device']
-    device = torch.device('cuda:{}'.format(min(device_ids)) if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
     # 3. visdom
-    vis = visdom.Visdom(port=train_config['port'])
+    vis = visdom.Visdom(port=opts.visdom_port)
 
     # 4. data(set/loader)
-    train_loader, test_loader = build_dataset(data_config)
+    train_loader, test_loader = build_dataset(opts)
 
     # 5. model
-    # model = FRCNN()
     model = FRCNN()
-    # model = FasterRCNNVGG16()
     model = model.to(device)
 
     # 6. loss
     criterion = FRCNNLoss()
 
     # 7. optimizer
-    params = []
-    for key, value in dict(model.named_parameters()).items():
-        if value.requires_grad:
-            if 'bias' in key:
-                params += [{'params': [value], 'lr': 0.001 * 2, 'weight_decay': 0}]
-            else:
-                params += [{'params': [value], 'lr': 0.001, 'weight_decay': 0.0005}]
-    optimizer = torch.optim.SGD(params=params,
-                                momentum=0.9)
-
-    # optimizer = torch.optim.SGD(params=model.parameters(),
-    #                             lr=0.001,
-    #                             momentum=0.9,
-    #                             weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params=model.parameters(),
+                                lr=opts.lr,
+                                momentum=opts.momentum,
+                                weight_decay=opts.weight_decay)
 
     # 8. scheduler
     scheduler = StepLR(optimizer=optimizer, step_size=8, gamma=0.1)   # 9
 
-    for epoch in range(train_config['start_epoch'], train_config['epoch']):
+    # 9. logger
+    xl_log_saver = None
+    if opts.rank == 0:
+        xl_log_saver = XLLogSaver(xl_folder_name=os.path.join(opts.log_dir, opts.name),
+                                  xl_file_name=opts.name,
+                                  tabs=('epoch', 'mAP'))
+
+    for epoch in range(opts.start_epoch, opts.epoch):
 
         # 9. train one epoch
         train_one_epoch(epoch=epoch,
@@ -73,7 +66,7 @@ def main_worker():
                         criterion=criterion,
                         optimizer=optimizer,
                         scheduler=scheduler,
-                        opts=train_config)
+                        opts=opts)
 
         # 10. test and evaluation
         test_and_eval(epoch=epoch,
@@ -81,12 +74,19 @@ def main_worker():
                       vis=vis,
                       test_loader=test_loader,
                       model=model,
-                      criterion=criterion,
-                      opts=train_config,
+                      xl_log_saver=xl_log_saver,
+                      opts=opts,
                       visualization=False)
 
         scheduler.step()
 
 
 if __name__ == '__main__':
-    main_worker()
+
+    parser = argparse.ArgumentParser('VGG16 training', parents=[get_args_parser()])
+    opts = parser.parse_args()
+
+    opts.world_size = len(opts.gpu_ids)
+    opts.num_workers = len(opts.gpu_ids) * 4
+
+    main_worker(opts.rank, opts)

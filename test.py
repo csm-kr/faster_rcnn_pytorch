@@ -8,13 +8,13 @@ from evaluation.evaluator import Evaluator
 
 
 @ torch.no_grad()
-def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts, visualization=False):
+def test_and_eval(epoch, device, vis, test_loader, model, xl_log_saver, opts, visualization=False):
 
     # 0. evaluator
     evaluator = Evaluator(data_type='voc')
 
     # 1. load .pth
-    checkpoint = torch.load(f=os.path.join(opts['save_path'], opts['save_file_name'] + '.{}.pth.tar'.format(epoch)),
+    checkpoint = torch.load(f=os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.{}.pth.tar'.format(epoch)),
                             map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
@@ -60,51 +60,11 @@ def test_and_eval(epoch, device, vis, test_loader, model, criterion, opts, visua
         # loss plot
         vis.line(X=torch.ones((1, 1)).cpu() * epoch,  # step
                  Y=torch.Tensor([mAP]).unsqueeze(0).cpu(),
-                 win='test_loss',
+                 win='test_results_of_' + opts.name,
                  update='append',
                  opts=dict(xlabel='step',
                            ylabel='test',
                            title='test loss',
                            legend=['mAP']))
 
-#
-# if __name__ == '__main__':
-#     from config import load_arguments
-#     from dataset.build import build_dataset
-#     from model.build import build_model
-#     from coder import FasterRCNN_Coder
-#     from loss.build import build_loss
-#
-#     # 1. config
-#     yaml_file = './yaml/faster_rcnn_config.yaml'
-#     config = load_arguments(yaml_file)
-#
-#     # configuration with yaml
-#     train_config = config['train']
-#     data_config = config['data']
-#     model_config = config['model']
-#
-#     # 2. device
-#     device_ids = train_config['device']
-#     device = torch.device('cuda:{}'.format(min(device_ids)) if torch.cuda.is_available() else 'cpu')
-#
-#     # 3. data(set/loader)
-#     train_loader, test_loader = build_dataset(data_config)
-#
-#     # 4. model
-#     model = build_model(model_config)
-#     model = model.to(device)
-#
-#     # 5. loss
-#     coder = FasterRCNN_Coder()
-#     criterion = build_loss(model_config, coder)
-#
-#     test_and_eval(epoch=3,
-#                   device=device,
-#                   vis=None,
-#                   test_loader=test_loader,
-#                   model=model,
-#                   criterion=criterion,
-#                   optimizer=None,
-#                   scheduler=None,
-#                   opts=train_config)
+    xl_log_saver.insert_each_epoch(contents=(epoch, mAP))
