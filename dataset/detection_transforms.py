@@ -272,3 +272,49 @@ class DetResize(object):
                                 size=self.size,
                                 max_size=self.max_size,
                                 box_normalization=self.box_normalization)
+
+
+def detection_resize_only_image(image, size, max_size):
+
+    h = image.size(1)
+    w = image.size(2)
+
+    # 2. get resize size
+    if isinstance(size, (list, tuple)):
+        size = size
+    else:
+        if max_size is not None:
+            min_original_size = float(min((h, w)))
+            max_original_size = float(max((h, w)))
+
+            # e.g) 800 ~ 1333
+            # 작은값을 800으로 맞추었을때의 큰값이 1333 을 넘으면,
+            if size / min_original_size * max_original_size > max_size:
+                # 큰 값을 1333 으로 맞추었을때의 작은값을 size로 정한다. (더 작아짐)
+                size = int(round(max_size / max_original_size * min_original_size))
+
+        # 3. get aspect_ratio
+        if (w <= h and w == size) or (h <= w and h == size):
+            size = (h, w)
+        else:
+            if w < h:
+                ow = size
+                oh = int(size * h / w)
+            else:
+                oh = size
+                ow = int(size * w / h)
+            size = (oh, ow)
+
+    rescaled_image = F.resize(image, size)
+    return rescaled_image
+
+
+class FRCNNResizeOnlyImage(object):
+    def __init__(self, size, max_size=None):
+        self.size = size
+        self.max_size = max_size
+
+    def __call__(self, image):
+        return detection_resize_only_image(image=image,
+                                           size=self.size,
+                                           max_size=self.max_size)
