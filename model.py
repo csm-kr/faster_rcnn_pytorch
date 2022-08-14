@@ -1,3 +1,4 @@
+import cv2
 import torch
 import numpy as np
 import torch.nn as nn
@@ -361,8 +362,7 @@ class FRCNN(nn.Module):
         # make pred prob and bbox(post process)
         pred_cls = (torch.softmax(pred_fast_rcnn_cls, dim=-1))      # batch 없애는 부분
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, 21, 4)  # ex) [184, 21, 4]
-        pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(
-            torch.get_device(pred_fast_rcnn_reg))
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(pred_fast_rcnn_reg))
         rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_reg)
         pred_bbox = decode(pred_fast_rcnn_reg.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))
         pred_bbox = cxcy_to_xy(pred_bbox)
@@ -371,13 +371,11 @@ class FRCNN(nn.Module):
         pred_bbox = pred_bbox.clamp(min=0, max=1)
         bbox, label, score = self._suppress(pred_bbox, pred_cls)
 
-        cv2_vis = visualization
-        if cv2_vis:
-            import cv2
+        if visualization:
+
             img_height, img_width = x.size()[2:]
             multiplier = np.array([img_width, img_height, img_width, img_height])
             bbox *= multiplier
-            # print(bbox)
 
             # 0. permute
             images = x.cpu()
@@ -392,30 +390,57 @@ class FRCNN(nn.Module):
 
             x_img = image_np
             im_show = cv2.cvtColor(x_img, cv2.COLOR_RGB2BGR)
-            for j in range(len(bbox)):
-                cv2.rectangle(im_show,
-                              (int(bbox[j][0]), int(bbox[j][1])),
-                              (int(bbox[j][2]), int(bbox[j][3])),
-                              (0, 0, 255),
-                              1)
 
-            cv2.imshow('result', im_show)
-            cv2.waitKey(0)
+            for j in range(len(bbox)):
+
+                from utils import voc_color_array, voc_label_map
+                voc_label_list = list(voc_label_map.keys())
+
+                x_min = int(bbox[j][0])
+                y_min = int(bbox[j][1])
+                x_max = int(bbox[j][2])
+                y_max = int(bbox[j][3])
+
+                cv2.rectangle(im_show,
+                              pt1=(x_min, y_min),
+                              pt2=(x_max, y_max),
+                              color=voc_color_array[label[j]],
+                              thickness=2)
+
+                # text_size
+                text_size = cv2.getTextSize(text=voc_label_list[label[j]] + ' {:.2f}'.format(score[j].item()),
+                                            fontFace=cv2.FONT_HERSHEY_PLAIN,
+                                            fontScale=1,
+                                            thickness=1)[0]
+
+                # text_rec
+                cv2.rectangle(im_show,
+                              pt1=(x_min, y_min),
+                              pt2=(x_min + text_size[0] + 3, y_min + text_size[1] + 4),
+                              color=voc_color_array[label[j]],
+                              thickness=-1)
+
+                # put text
+                cv2.putText(im_show,
+                            text=voc_label_list[label[j]] + ' {:.2f}'.format(score[j].item()),
+                            org=(x_min + 10, y_min + 10),   # must be int
+                            fontFace=0,
+                            fontScale=0.4,
+                            color=(0, 0, 0))
+
+            return bbox, label, score, im_show
         return bbox, label, score
 
     def _suppress(self, raw_cls_bbox, raw_prob):
-        from torchvision.ops import nms
-
-        bbox = list()
         bbox = list()
         label = list()
         score = list()
-        # skip cls_id = 0 because it is the background class
 
+        # skip cls_id = 0 because it is the background class
         for l in range(1, 21):
             cls_bbox_l = raw_cls_bbox.reshape((-1, 21, 4))[:, l, :]
             prob_l = raw_prob[:, l]
-            mask = prob_l > 0.05
+            mask = prob_l > 0.5
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
             keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)
@@ -430,8 +455,6 @@ class FRCNN(nn.Module):
 
 
 def normal_init(m, mean, stddev):
-    import torch
-    torch.manual_seed(111)
     m.weight.data.normal_(mean, stddev)
     m.bias.data.zero_()
 

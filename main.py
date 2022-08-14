@@ -20,6 +20,7 @@ from log import XLLogSaver
 
 
 def main_worker(rank, opts):
+
     # 1. config
     print(opts)
 
@@ -54,10 +55,12 @@ def main_worker(rank, opts):
         xl_log_saver = XLLogSaver(xl_folder_name=os.path.join(opts.log_dir, opts.name),
                                   xl_file_name=opts.name,
                                   tabs=('epoch', 'mAP'))
+    # 10. best
+    result_best = {'epoch': 0, 'mAP': 0.}
 
     for epoch in range(opts.start_epoch, opts.epoch):
 
-        # 9. train one epoch
+        # 10. train one epoch
         train_one_epoch(epoch=epoch,
                         device=device,
                         vis=vis,
@@ -68,16 +71,16 @@ def main_worker(rank, opts):
                         scheduler=scheduler,
                         opts=opts)
 
-        # 10. test and evaluation
-        test_and_eval(epoch=epoch,
-                      device=device,
-                      vis=vis,
-                      test_loader=test_loader,
-                      model=model,
-                      xl_log_saver=xl_log_saver,
-                      opts=opts,
-                      visualization=False)
-
+        # 11. test and evaluation
+        result_best = test_and_eval(epoch=epoch,
+                                    device=device,
+                                    vis=vis,
+                                    test_loader=test_loader,
+                                    model=model,
+                                    xl_log_saver=xl_log_saver,
+                                    opts=opts,
+                                    result_best=result_best,
+                                    )
         scheduler.step()
 
 

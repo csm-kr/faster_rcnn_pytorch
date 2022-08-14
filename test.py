@@ -8,7 +8,7 @@ from evaluation.evaluator import Evaluator
 
 
 @ torch.no_grad()
-def test_and_eval(epoch, device, vis, test_loader, model, xl_log_saver, opts, visualization=False):
+def test_and_eval(epoch, device, vis, test_loader, model , opts, xl_log_saver=None, result_best=None):
 
     # 0. evaluator
     evaluator = Evaluator(data_type='voc')
@@ -35,7 +35,7 @@ def test_and_eval(epoch, device, vis, test_loader, model, xl_log_saver, opts, vi
         labels = [l.to(device) for l in labels]
 
         # 3. forward(predict)
-        pred_bboxes, pred_labels, pred_scores = model.predict(images, visualization)
+        pred_bboxes, pred_labels, pred_scores = model.predict(images, opts.test_vis)
         eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
 
         # 4. get info for evaluation
@@ -66,5 +66,63 @@ def test_and_eval(epoch, device, vis, test_loader, model, xl_log_saver, opts, vi
                            ylabel='test',
                            title='test loss',
                            legend=['mAP']))
+    if xl_log_saver is not None:
+        xl_log_saver.insert_each_epoch(contents=(epoch, mAP))
 
-    xl_log_saver.insert_each_epoch(contents=(epoch, mAP))
+    # save best.pth.tar
+    if result_best is not None:
+        if result_best['mAP'] < mAP:
+            print("update best model")
+            result_best['epoch'] = epoch
+            result_best['mAP'] = mAP
+            torch.save(checkpoint, os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.best.pth.tar'))
+
+        return result_best
+
+import argparse
+from model import FRCNN
+from loss import FRCNNLoss
+from dataset.build import build_dataset
+from config import get_args_parser
+
+
+def test_worker(rank, opts):
+
+    # 1. config
+    print(opts)
+
+    # 2. device
+    device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
+
+    # 3. visdom
+    vis = None
+
+    # 4. data(set/loader)
+    _, test_loader = build_dataset(opts)
+
+    # 5. model
+    model = FRCNN()
+    model = model.to(device)
+
+    # 6. loss
+    # criterion = FRCNNLoss()
+
+    test_and_eval(epoch=opts.test_epoch,
+                  device=device,
+                  vis=vis,
+                  test_loader=test_loader,
+                  model=model,
+                  opts=opts,
+                  )
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser('faster rcnn testing', parents=[get_args_parser()])
+    opts = parser.parse_args()
+
+    opts.world_size = len(opts.gpu_ids)
+    opts.num_workers = len(opts.gpu_ids) * 4
+
+    print(opts)
+    test_worker(0, opts)
