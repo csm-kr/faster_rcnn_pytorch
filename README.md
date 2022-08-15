@@ -70,3 +70,30 @@ VOC
 - [ ] FPN
 - [ ] D4
 - [x] Augmentation 
+
+### Quick Start for test
+
+1. download faster_rcnn_full_voc.best.pth.tar [here](https://livecauac-my.sharepoint.com/:u:/g/personal/csm8167_cau_ac_kr/EaOuSelMyTJKin5B5C2k8D4BzXIC9Ej62CArAUXrpk9Hgg)
+
+2. put tar file in like this (in saves)
+
+```
+dataset
+evaluation
+figures
+logs
+    |-- faster_rcnn_full_voc
+        |-- saves
+            |-- faster_rcnn_full_voc.best.pth.tar
+anchor.py
+...
+main.py
+...
+utils.py
+```
+
+3. set root and run test.py
+```
+test.py --name faster_rcnn_full_voc --root your own root
+```
+
