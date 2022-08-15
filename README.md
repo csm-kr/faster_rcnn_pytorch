@@ -40,21 +40,22 @@ VOC
 |------------|------------|------------|------------| --------------- |
 |papers      |2007        |  2007      | **         |   69.9          |
 |papers      |2007 + 2012 |  2007      | **         |   73.2          |
-|this repo   |2007        |  2007      | **         |   71.0 (+1.1)   |
+|this repo   |2007        |  2007      | **         |   71.00(+1.10)  |
 |this repo   |2007 + 2012 |  2007      | **         |   75.81(+2.61)  |
 
 COCO
 
-|methods     |  Traning   |   Testing  | Resolution |   AP50          |
-|------------|------------|------------|------------| --------------- |
-|papers      |2007        |  2007      | **         |   69.9          |
-|papers      |2007 + 2012 |  2007      | **         |   73.2          |
-|this repo   |2007        |  2007      | **         |   71.0 (+1.1)   |
-|this repo   |2007 + 2012 |  2007      | **         |      _          |
+|methods     |  Traning    |   Testing  | Resolution |   mAP@[.5 .95]  |
+|------------|-------------|------------|------------| --------------- |
+|papers      |train        |  2007      | **         |   21.5          |
+|papers      |trainval     |  2007      | **         |   21.9          |
+|this repo   |COCOtrain2017| minival    | **         |   -             |
 
 ** A way to resize frcnn is to make the image different size if the original image is different.
 
 #### 2. quantitative result
+
+VOC
 
 ![000001_input](./figures/000001_.jpg)
 ![000001_result](./figures/000001.jpg)
