@@ -142,27 +142,27 @@ class FastRcnnTargetMaker(nn.Module):
         n_pos = int(min((IoU_max >= 0.5).sum(), 32))
 
         # random select pos and neg indices
-        # pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
-        # perm = torch.randperm(pos_index.size(0))
-        # pos_index = pos_index[perm[:n_pos]]
+        pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
+        perm = torch.randperm(pos_index.size(0))
+        pos_index = pos_index[perm[:n_pos]]
 
-        import numpy as np
-        pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5].cpu().numpy()
-        if pos_index.size > 0:
-            np.random.seed(111)
-            pos_index = np.random.choice(pos_index, size=n_pos, replace=False)
+        # import numpy as np
+        # pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5].cpu().numpy()
+        # if pos_index.size > 0:
+        #     np.random.seed(111)
+        #     pos_index = np.random.choice(pos_index, size=n_pos, replace=False)
 
         n_neg = 128 - n_pos
 
-        neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)].cpu().numpy()
-        if neg_index.size > 0:
-            # print(neg_index.size)
-            np.random.seed(111)
-            neg_index = np.random.choice(neg_index, size=128 - n_pos, replace=False)
+        # neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)].cpu().numpy()
+        # if neg_index.size > 0:
+        #     # print(neg_index.size)
+        #     np.random.seed(111)
+        #     neg_index = np.random.choice(neg_index, size=128 - n_pos, replace=False)
 
-        # neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
-        # perm = torch.randperm(neg_index.size(0))
-        # neg_index = neg_index[perm[:n_neg]]
+        neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
+        perm = torch.randperm(neg_index.size(0))
+        neg_index = neg_index[perm[:n_neg]]
 
         assert n_neg + n_pos == 128
 
@@ -211,6 +211,11 @@ class RPNTargetMaker(nn.Module):
 
         # 2-1. set negative label
         label[IoU_max < 0.3] = 0
+        n_neg = (label == 0).sum()
+
+        if n_neg <= 200:
+            print(n_neg)
+
         # 2-2. set positive label that have highest iou.
         IoU_max_per_object, IoU_argmax_per_object = iou.max(dim=0)
         # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분. **
@@ -223,33 +228,24 @@ class RPNTargetMaker(nn.Module):
         n_pos = (label == 1).sum()
         n_neg = (label == 0).sum()
 
-        if n_pos > 128:
-            # pos_indices = torch.arange(label.size(0))[label == 1]
-            # perm = torch.randperm(pos_indices.size(0))
-            # label[pos_indices[perm[128:]]] = -1  # convert pos label to ignore label
+        # print(n_pos)
+        # print(n_neg)
 
-            import numpy as np
-            np.random.seed(111)
-            pos_index = torch.arange(label.size(0))[label == 0].numpy()
-            disable_index = np.random.choice(pos_index, size=int(n_pos - 128), replace=False)
-            label[disable_index] = -1
+        if n_pos > 128:
+
+            pos_indices = torch.arange(label.size(0))[label == 1]
+            perm = torch.randperm(pos_indices.size(0))
+            label[pos_indices[perm[128:]]] = -1  # convert pos label to ignore label
 
         if n_neg > 256 - n_pos:
-            # neg_indices = torch.arange(label.size(0))[label == 0]
-            # perm = torch.randperm(neg_indices.size(0))
-            # label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
+            if n_pos > 128:
+                n_pos = 128
+            neg_indices = torch.arange(label.size(0))[label == 0]
+            perm = torch.randperm(neg_indices.size(0))
+            label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
 
-            import numpy as np
-            np.random.seed(111)
-            neg_index = torch.arange(label.size(0))[label == 0].numpy()
-            disable_index = np.random.choice(neg_index, size=int(len(neg_index) - (256 - n_pos)), replace=False)
-            label[disable_index] = -1  # tensor 의 index 로 numpy 가 된다??
-
-            # perm = torch.randperm(neg_indices.size(0))
-            # label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
-
-        assert (label == 1).sum() + (label == 0).sum() == 256, \
-            '더해서 256이 아니라고? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum())
+        assert (label == 1).sum() + (label == 0).sum() > 200, \
+            'less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum())
 
         # 3. bbox encoding
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
@@ -440,7 +436,7 @@ class FRCNN(nn.Module):
         for l in range(1, 21):
             cls_bbox_l = raw_cls_bbox.reshape((-1, 21, 4))[:, l, :]
             prob_l = raw_prob[:, l]
-            mask = prob_l > 0.5
+            mask = prob_l > 0.05
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
             keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)

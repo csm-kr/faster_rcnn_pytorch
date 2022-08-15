@@ -14,9 +14,18 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 ### TRAINING
 
+#### voc
 - **Use approximate joint training**
 - optimizer : SGD
 - epoch : 14 
+- initial learning rate 0.001
+- weight decay : 5e-4
+- momentum : 0.9
+
+#### coco
+- **Use approximate joint training**
+- optimizer : SGD
+- epoch : 12 
 - initial learning rate 0.001
 - weight decay : 5e-4
 - momentum : 0.9
@@ -26,6 +35,15 @@ Please refer to https://arxiv.org/abs/1506.01497
 #### 1. qualitative result
 
 VOC
+
+|methods     |  Traning   |   Testing  | Resolution |   AP50          |
+|------------|------------|------------|------------| --------------- |
+|papers      |2007        |  2007      | **         |   69.9          |
+|papers      |2007 + 2012 |  2007      | **         |   73.2          |
+|this repo   |2007        |  2007      | **         |   71.0 (+1.1)   |
+|this repo   |2007 + 2012 |  2007      | **         |   75.81(+2.61)  |
+
+COCO
 
 |methods     |  Traning   |   Testing  | Resolution |   AP50          |
 |------------|------------|------------|------------| --------------- |
@@ -43,3 +61,11 @@ VOC
 
 ![000015](./figures/000010.jpg)
 ![000021](./figures/000021.jpg)
+
+
+### TODO LIST
+
+- [ ] DC5
+- [ ] FPN
+- [ ] D4
+- [x] Augmentation 

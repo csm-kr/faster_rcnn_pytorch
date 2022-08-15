@@ -106,12 +106,13 @@ class VOC_Dataset(data.Dataset):
 
         for data_ in self.data_list:
 
-            # self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/JPEGImages/*.jpg')))
-            # self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/Annotations/*.xml')))
+            self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/JPEGImages/*.jpg')))
+            self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/*/Annotations/*.xml')))
             # only voc 2007
-            self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/VOC2007/JPEGImages/*.jpg')))
-            self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/VOC2007/Annotations/*.xml')))
+            # self.img_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/VOC2007/JPEGImages/*.jpg')))
+            # self.anno_list.extend(glob.glob(os.path.join(os.path.join(self.root, data_), '*/VOC2007/Annotations/*.xml')))
 
+        # for debug
         self.img_list = sorted(self.img_list)
         self.anno_list = sorted(self.anno_list)
 
@@ -122,8 +123,12 @@ class VOC_Dataset(data.Dataset):
 
         # load img
         image = Image.open(self.img_list[idx]).convert('RGB')
+        # print(self.img_list[idx])
         # load labels
         boxes, labels = self.parse_voc(self.anno_list[idx])
+        # print(boxes)
+        # print(self.img_list[idx])
+        # issue : diff 1인 친구들
 
         # load img name for string
         img_name = os.path.basename(self.anno_list[idx]).split('.')[0]
@@ -202,9 +207,9 @@ class VOC_Dataset(data.Dataset):
 
         for obj in root.iter("object"):
 
-            if int(obj.find('difficult').text) == 1:
-                # difficult.append(int(obj.find('difficult').text))
-                continue
+            # if int(obj.find('difficult').text) == 1:
+            #     # difficult.append(int(obj.find('difficult').text))
+            #     continue
 
             # 'name' tag 에서 멈추기
             name = obj.find('./name')

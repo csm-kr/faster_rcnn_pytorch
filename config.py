@@ -5,7 +5,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser(add_help=False)
 
     # visualization
-    parser.add_argument('--visdom_port', type=int, default=8098)
+    parser.add_argument('--visdom_port', type=int, default=8099)
     parser.add_argument('--vis_step', type=int, default=100)
     parser.add_argument('--save_step', type=int, default=50000)
 
@@ -14,7 +14,7 @@ def get_args_parser():
     parser.add_argument('--log_dir', type=str, default='./logs')
 
     # dataset
-    parser.add_argument('--name', type=str, default='faster_rcnn', help='experiment name')   # FIXME
+    parser.add_argument('--name', type=str, default='faster_rcnn_full_voc', help='experiment name')   # FIXME
     # parser.add_argument('--root', type=str, default=r'/home/cvmlserver7/Sungmin/data/voc')
     parser.add_argument('--root', type=str, default=r'D:\data\voc')
     parser.add_argument('--data_type', type=str, default='voc')
