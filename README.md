@@ -94,4 +94,3 @@ test.py --name faster_rcnn_coco --root your own root --data_type coco
 ### Process of faster rcnn
 
 ![Process](./figures/faster_rcnn_process.jpg)
-![structure](./figures/structure_of_faster_rcnn.png)
