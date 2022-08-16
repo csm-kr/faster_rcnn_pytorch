@@ -101,7 +101,7 @@ If you found this implementation and pretrained model helpful, please consider c
 @misc{csm-kr_Faster_RCNN_Pytorch,
   author={Sungmin, Cho},
   publisher = {GitHub},
-  title={nerf_pytorch},
+  title={Faster_RCNN_Pytorch},
   url={https://github.com/csm-kr/Faster_RCNN_Pytorch//},
   year={2022},
 }
