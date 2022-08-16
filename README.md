@@ -94,3 +94,15 @@ test.py --name faster_rcnn_coco --root your own root --data_type coco
 ### Process of faster rcnn
 
 ![Process](./figures/faster_rcnn_process.jpg)
+
+### citation
+If you found this implementation and pretrained model helpful, please consider citation
+```
+@misc{csm-kr_Faster_RCNN_Pytorch,
+  author={Sungmin, Cho},
+  publisher = {GitHub},
+  title={nerf_pytorch},
+  url={https://github.com/csm-kr/Faster_RCNN_Pytorch//},
+  year={2022},
+}
+```
