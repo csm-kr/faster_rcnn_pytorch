@@ -423,7 +423,7 @@ class FRCNN(nn.Module):
             mask = prob_l > 0.05
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
-            keep = nms(cls_bbox_l, prob_l, iou_threshoprld=0.3)
+            keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)
             bbox.append(cls_bbox_l[keep].cpu().numpy())
             label.append((l - 1) * np.ones((len(keep),)))
             score.append(prob_l[keep].cpu().numpy())
