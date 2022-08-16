@@ -1,4 +1,4 @@
-# Faster RCNN Pytorch 
+# faster_rcnn_pytorch 
 
 re-implementation of faster rcnn (NIPS2015)
 
