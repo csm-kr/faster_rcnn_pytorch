@@ -6,7 +6,7 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 ### data set
 - [x] VOC  
-- [ ] COCO
+- [x] COCO
 
 ### data augmentation (for implementation of original paper)
 - [x] Resize
@@ -14,15 +14,6 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 ### TRAINING
 
-#### voc
-- **Use approximate joint training**
-- optimizer : SGD
-- epoch : 14 
-- initial learning rate 0.001
-- weight decay : 5e-4
-- momentum : 0.9
-
-#### coco
 - **Use approximate joint training**
 - optimizer : SGD
 - epoch : 12 
@@ -64,27 +55,28 @@ VOC
 ![000021](./figures/000021.jpg)
 
 
-### TODO LIST
-
-- [ ] DC5
-- [ ] FPN
-- [ ] D4
-- [x] Augmentation 
-
 ### Quick Start for test
 
-1. download faster_rcnn_full_voc.best.pth.tar [here](https://livecauac-my.sharepoint.com/:u:/g/personal/csm8167_cau_ac_kr/EaOuSelMyTJKin5B5C2k8D4BzXIC9Ej62CArAUXrpk9Hgg)
+1 - download pth.tar files 
 
-2. put tar file in like this (in saves)
+- VOC
+- faster_rcnn_voc.best.pth.tar [here](https://livecauac-my.sharepoint.com/:u:/g/personal/csm8167_cau_ac_kr/EaOuSelMyTJKin5B5C2k8D4BzXIC9Ej62CArAUXrpk9Hgg) (about 1GB)
+- COCO
+- faster_rcnn_cococ.best.pth.tar here
+
+2 - put tar file in like this (in saves)
 
 ```
 dataset
 evaluation
 figures
 logs
-    |-- faster_rcnn_full_voc
+    |-- faster_rcnn_voc
         |-- saves
-            |-- faster_rcnn_full_voc.best.pth.tar
+            |-- faster_rcnn_coco.best.pth.tar    
+    |-- faster_rcnn_coco
+        |-- saves
+            |-- faster_rcnn_coco.best.pth.tar
 anchor.py
 ...
 main.py
@@ -92,8 +84,14 @@ main.py
 utils.py
 ```
 
-3. set root and run test.py
+3 - set root and run test.py
 ```
-test.py --name faster_rcnn_full_voc --root your own root
+test.py --name faster_rcnn_voc --root your own root --data_type voc
+test.py --name faster_rcnn_coco --root your own root --data_type coco
 ```
 
+
+### Process of faster rcnn
+
+![Process](./figures/faster_rcnn_process.jpg)
+![structure](./figures/structure_of_faster_rcnn.png)

@@ -145,20 +145,7 @@ class FastRcnnTargetMaker(nn.Module):
         pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
         perm = torch.randperm(pos_index.size(0))
         pos_index = pos_index[perm[:n_pos]]
-
-        # import numpy as np
-        # pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5].cpu().numpy()
-        # if pos_index.size > 0:
-        #     np.random.seed(111)
-        #     pos_index = np.random.choice(pos_index, size=n_pos, replace=False)
-
         n_neg = 128 - n_pos
-
-        # neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)].cpu().numpy()
-        # if neg_index.size > 0:
-        #     # print(neg_index.size)
-        #     np.random.seed(111)
-        #     neg_index = np.random.choice(neg_index, size=128 - n_pos, replace=False)
 
         neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
         perm = torch.randperm(neg_index.size(0))
@@ -166,10 +153,7 @@ class FastRcnnTargetMaker(nn.Module):
 
         assert n_neg + n_pos == 128
 
-        import numpy as np
-        keep_index = np.concatenate([pos_index, neg_index], axis=-1)
-
-        # keep_index = torch.cat([pos_index, neg_index], dim=-1)
+        keep_index = torch.cat([pos_index, neg_index], dim=-1)
 
         # make CLS target
         fast_rcnn_tg_cls = fast_rcnn_tg_cls[keep_index]
