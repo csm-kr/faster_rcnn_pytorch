@@ -73,7 +73,7 @@ figures
 logs
     |-- faster_rcnn_voc
         |-- saves
-            |-- faster_rcnn_coco.best.pth.tar    
+            |-- faster_rcnn_voc.best.pth.tar    
     |-- faster_rcnn_coco
         |-- saves
             |-- faster_rcnn_coco.best.pth.tar
