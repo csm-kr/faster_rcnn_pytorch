@@ -165,7 +165,7 @@ class COCO_Dataset(Dataset):
         # --------------------------- for transform ---------------------------
         if self.transform is not None:
             image, boxes, labels = self.transform(image, boxes, labels)
-        print("boxes:", boxes)
+        # print("boxes:", boxes)
 
         if self.visualization:
             # ----------------- visualization -----------------
@@ -305,4 +305,4 @@ if __name__ == '__main__':
         images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
-        print(labels)
+        # print(labels)

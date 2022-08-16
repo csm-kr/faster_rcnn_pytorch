@@ -34,7 +34,7 @@ def main_worker(rank, opts):
     train_loader, test_loader = build_dataset(opts)
 
     # 5. model
-    model = FRCNN()
+    model = FRCNN(num_classes=opts.num_classes)
     model = model.to(device)
 
     # 6. loss

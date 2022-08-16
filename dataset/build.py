@@ -62,8 +62,38 @@ def build_dataset(opts):
                                  shuffle=False,
                                  num_workers=0,
                                  pin_memory=True)
+        opts.num_classes = 21
 
-        return train_loader, test_loader
+    elif opts.data_type == 'coco':
+
+        train_set = COCO_Dataset(root=opts.root,
+                                 split='train',
+                                 download=True,
+                                 transform=transform_train,
+                                 visualization=False)
+
+        test_set = COCO_Dataset(root=opts.root,
+                                split='val',
+                                download=True,
+                                transform=transform_test,
+                                visualization=False)
+
+        train_loader = DataLoader(train_set,
+                                  batch_size=opts.batch_size,
+                                  collate_fn=train_set.collate_fn,
+                                  shuffle=True,
+                                  num_workers=opts.num_workers,
+                                  pin_memory=True)
+
+        test_loader = DataLoader(test_set,
+                                 batch_size=1,
+                                 collate_fn=test_set.collate_fn,
+                                 shuffle=False,
+                                 num_workers=0,
+                                 pin_memory=True)
+        opts.num_classes = 81
+
+    return train_loader, test_loader
 
 
 

@@ -14,10 +14,18 @@ def get_args_parser():
     parser.add_argument('--log_dir', type=str, default='./logs')
 
     # dataset
-    parser.add_argument('--name', type=str, default='faster_rcnn_full_voc', help='experiment name')   # FIXME
+    parser.add_argument('--name', type=str, default='faster_rcnn_coco', help='experiment name')   # FIXME
     # parser.add_argument('--root', type=str, default=r'/home/cvmlserver7/Sungmin/data/voc')
-    parser.add_argument('--root', type=str, default=r'D:\data\voc')
-    parser.add_argument('--data_type', type=str, default='voc')
+
+
+    # parser.add_argument('--root', type=str, default=r'D:\data\voc')
+    # parser.add_argument('--data_type', type=str, default='voc')
+
+    # parser.add_argument('--root', type=str, default=r'D:\data\coco')
+    parser.add_argument('--root', type=str, default=r'/home/cvmlserver7/Sungmin/data/coco')
+    parser.add_argument('--data_type', type=str, default='coco')
+
+    parser.add_argument('--num_classes', type=int, default=0)
 
     # training
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -34,7 +42,8 @@ def get_args_parser():
     parser.add_argument('--testing', dest='is_test', action='store_true')
     parser.set_defaults(visualization=False)
     parser.set_defaults(test_vis=False)
-    parser.add_argument('--test_epoch', type=str, default='best')
+    # parser.add_argument('--test_epoch', type=str, default='best')
+    parser.add_argument('--test_epoch', type=str, default='0')
     # parser.add_argument('--visualization', dest='is_test', action='store_true')
 
     # demo

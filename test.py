@@ -8,10 +8,10 @@ from evaluation.evaluator import Evaluator
 
 
 @ torch.no_grad()
-def test_and_eval(epoch, device, vis, test_loader, model , opts, xl_log_saver=None, result_best=None):
+def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=None, result_best=None):
 
     # 0. evaluator
-    evaluator = Evaluator(data_type='voc')
+    evaluator = Evaluator(data_type=opts.data_type)  # opts.data_type : voc or coco
 
     # 1. load .pth
     checkpoint = torch.load(f=os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.{}.pth.tar'.format(epoch)),
@@ -27,7 +27,7 @@ def test_and_eval(epoch, device, vis, test_loader, model , opts, xl_log_saver=No
         images = data[0]
         boxes = data[1]
         labels = data[2]
-        info = data[3][0]  # [{}]
+        # info = data[3][0]  # [{}]
 
         # 2. load data to device
         images = images.to(device)
@@ -36,10 +36,23 @@ def test_and_eval(epoch, device, vis, test_loader, model , opts, xl_log_saver=No
 
         # 3. forward(predict)
         pred_bboxes, pred_labels, pred_scores = model.predict(images, opts.test_vis)
-        eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
+
+        if opts.data_type == 'voc':
+
+            info = data[3][0]  # [{}]
+            info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
+
+        elif opts.data_type == 'coco':
+
+            img_id = test_loader.dataset.img_id[idx]
+            img_info = test_loader.dataset.coco.loadImgs(ids=img_id)[0]
+            coco_ids = test_loader.dataset.coco_ids
+            info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
+
+        # eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
 
         # 4. get info for evaluation
-        evaluator.get_info(eval_info)
+        evaluator.get_info(info)
 
         # 5. print log
         toc = time.time()
@@ -101,7 +114,7 @@ def test_worker(rank, opts):
     _, test_loader = build_dataset(opts)
 
     # 5. model
-    model = FRCNN()
+    model = FRCNN(opts.num_classes)
     model = model.to(device)
 
     # 6. loss

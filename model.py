@@ -213,9 +213,6 @@ class RPNTargetMaker(nn.Module):
         label[IoU_max < 0.3] = 0
         n_neg = (label == 0).sum()
 
-        if n_neg <= 200:
-            print(n_neg)
-
         # 2-2. set positive label that have highest iou.
         IoU_max_per_object, IoU_argmax_per_object = iou.max(dim=0)
         # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분. **
@@ -244,8 +241,10 @@ class RPNTargetMaker(nn.Module):
             perm = torch.randperm(neg_indices.size(0))
             label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
 
-        assert (label == 1).sum() + (label == 0).sum() > 200, \
-            'less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum())
+        # assert (label == 1).sum() + (label == 0).sum() > 200, \
+        #     'less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum())
+        if (label == 1).sum() + (label == 0).sum() < 200:
+            print('less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum()))
 
         # 3. bbox encoding
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
@@ -265,12 +264,13 @@ class RPNTargetMaker(nn.Module):
 
 
 class FRCNN(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes):
         super().__init__()
 
         # backbone
         backbone = vgg16(pretrained=True)
 
+        self.num_classes = num_classes
         # extractor
         self.extractor = nn.Sequential(
             *list(backbone.features.children())[:-1]
@@ -291,7 +291,7 @@ class FRCNN(nn.Module):
         # fast rcnn target
         self.fast_rcnn_target_maker = FastRcnnTargetMaker()
         # fast rcnn head
-        self.fast_rcnn_head = FastRCNNHead(num_classes=21, roi_size=7, classifier=self.classifier)
+        self.fast_rcnn_head = FastRCNNHead(num_classes=num_classes, roi_size=7, classifier=self.classifier)
         print("num_params : ", self.count_parameters())
 
     def count_parameters(self):
@@ -357,13 +357,13 @@ class FRCNN(nn.Module):
 
         # make pred prob and bbox(post process)
         pred_cls = (torch.softmax(pred_fast_rcnn_cls, dim=-1))      # batch 없애는 부분
-        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, 21, 4)  # ex) [184, 21, 4]
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, self.num_classes, 4)  # ex) [184, 21, 4]
         pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(pred_fast_rcnn_reg))
         rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_reg)
         pred_bbox = decode(pred_fast_rcnn_reg.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))
         pred_bbox = cxcy_to_xy(pred_bbox)
 
-        pred_bbox = pred_bbox.reshape(-1, 21 * 4)
+        pred_bbox = pred_bbox.reshape(-1, self.num_classes * 4)
         pred_bbox = pred_bbox.clamp(min=0, max=1)
         bbox, label, score = self._suppress(pred_bbox, pred_cls)
 
@@ -433,13 +433,13 @@ class FRCNN(nn.Module):
         score = list()
 
         # skip cls_id = 0 because it is the background class
-        for l in range(1, 21):
-            cls_bbox_l = raw_cls_bbox.reshape((-1, 21, 4))[:, l, :]
+        for l in range(1, self.num_classes):
+            cls_bbox_l = raw_cls_bbox.reshape((-1, self.num_classes, 4))[:, l, :]
             prob_l = raw_prob[:, l]
             mask = prob_l > 0.05
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
-            keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)
+            keep = nms(cls_bbox_l, prob_l, iou_threshoprld=0.3)
             bbox.append(cls_bbox_l[keep].cpu().numpy())
             label.append((l - 1) * np.ones((len(keep),)))
             score.append(prob_l[keep].cpu().numpy())
