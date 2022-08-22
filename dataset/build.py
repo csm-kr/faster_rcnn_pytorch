@@ -85,6 +85,13 @@ def build_dataset(opts):
                                   num_workers=opts.num_workers,
                                   pin_memory=True)
 
+        # train_loader = DataLoader(train_set,
+        #                           batch_size=opts.batch_size,
+        #                           collate_fn=train_set.collate_fn,
+        #                           shuffle=False,
+        #                           num_workers=0,
+        #                           pin_memory=False)
+
         test_loader = DataLoader(test_set,
                                  batch_size=1,
                                  collate_fn=test_set.collate_fn,

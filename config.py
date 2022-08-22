@@ -10,7 +10,7 @@ def get_args_parser():
     parser.add_argument('--save_step', type=int, default=50000)
 
     # save
-    parser.add_argument('--start_epoch', type=int, default=0)
+    parser.add_argument('--start_epoch', type=int, default=12)
     parser.add_argument('--log_dir', type=str, default='./logs')
 
     # dataset
@@ -31,7 +31,7 @@ def get_args_parser():
 
     # training
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument('--epoch', type=int, default=14)
+    parser.add_argument('--epoch', type=int, default=15)
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--warmup_epoch', type=int, default=1)
@@ -56,7 +56,7 @@ def get_args_parser():
     parser.set_defaults(demo_vis=True)
 
     # for multi-gpu
-    parser.add_argument('--gpu_ids', nargs="+", default=['0'])   # usage : --gpu_ids 0, 1, 2, 3
+    parser.add_argument('--gpu_ids', nargs="+", default=['1'])   # usage : --gpu_ids 0, 1, 2, 3
     parser.add_argument('--rank', type=int, default=0)
     parser.add_argument('--world_size', type=int, default=1)
 

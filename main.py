@@ -9,7 +9,7 @@ from config import get_args_parser
 from dataset.build import build_dataset
 from model import FRCNN
 from loss import FRCNNLoss
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 
 # train and test
 from train import train_one_epoch
@@ -17,6 +17,8 @@ from test import test_and_eval
 
 # log
 from log import XLLogSaver
+
+from utils import resume
 
 
 def main_worker(rank, opts):
@@ -47,7 +49,8 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 8. scheduler
-    scheduler = StepLR(optimizer=optimizer, step_size=8, gamma=0.1)   # 9
+    # scheduler = StepLR(optimizer=optimizer, step_size=8, gamma=0.1)   # 9
+    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=0.00005)
 
     # 9. logger
     xl_log_saver = None
@@ -55,7 +58,11 @@ def main_worker(rank, opts):
         xl_log_saver = XLLogSaver(xl_folder_name=os.path.join(opts.log_dir, opts.name),
                                   xl_file_name=opts.name,
                                   tabs=('epoch', 'mAP'))
-    # 10. best
+
+    # 10. resume
+    model, optimizer, scheduler = resume(opts, model, optimizer, scheduler)
+
+    # set best results
     result_best = {'epoch': 0, 'mAP': 0.}
 
     for epoch in range(opts.start_epoch, opts.epoch):
