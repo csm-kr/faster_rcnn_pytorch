@@ -1,4 +1,4 @@
-# faster_rcnn_pytorch 
+# Faster RCNN Pytorch 
 
 re-implementation of faster rcnn (NIPS2015)
 
@@ -16,7 +16,7 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 - **Use approximate joint training**
 - optimizer : SGD
-- epoch : 12 
+- epoch : 15 
 - initial learning rate 0.001
 - weight decay : 5e-4
 - momentum : 0.9
@@ -38,9 +38,9 @@ COCO
 
 |methods     |  Traning    |   Testing  | Resolution |   mAP@[.5 .95]  |
 |------------|-------------|------------|------------| --------------- |
-|papers      |train        |  2007      | **         |   21.5          |
-|papers      |trainval     |  2007      | **         |   21.9          |
-|this repo   |COCOtrain2017| minival    | **         |   -             |
+|papers      |train        |  COCOval   | **         |   21.2          |
+|papers      |trainval     |  COCOval   | **         |   -             |
+|this repo   |COCOtrain2017|  minival   | **         |   -             |
 
 ** A way to resize frcnn is to make the image different size if the original image is different.
 

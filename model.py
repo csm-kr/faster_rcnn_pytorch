@@ -195,13 +195,23 @@ class RPNTargetMaker(nn.Module):
 
         # 2-1. set negative label
         label[IoU_max < 0.3] = 0
-        n_neg = (label == 0).sum()
 
         # 2-2. set positive label that have highest iou.
-        IoU_max_per_object, IoU_argmax_per_object = iou.max(dim=0)
-        # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분. **
+        _, IoU_argmax_per_object = iou.max(dim=0)
+
+        # FIXME
+        # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분.   **
         # IoU_argmax_per_object update (max 값 포함하는 index 찾기)
-        IoU_argmax_per_object = torch.nonzero(input=(iou == IoU_max_per_object))[:, 0]  # 2차원이라 앞의 column 가져오기
+
+        # 검증
+        # print((iou == IoU_max_per_object).sum() == iou.size(1))
+        # print((iou == IoU_max_per_object).sum())
+        # print(iou.size(1))
+
+        # ** 2020/08/17 n_neg = 0 인 error -> 무시 **
+        # IoU_argmax_per_object = torch.nonzero(input=(iou == IoU_max_per_object))[:, 0]  # 2차원이라 앞의 column 가져오기
+        # FIXME
+
         label[IoU_argmax_per_object] = 1
         # 2-3. set positive label
         label[IoU_max >= 0.7] = 1
