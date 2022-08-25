@@ -327,7 +327,7 @@ class FRCNN(nn.Module):
         return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
                (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg)
 
-    def predict(self, x, visualization=False):
+    def predict(self, x, opts):
 
         # 1. extract features
         features = self.extractor(x)
@@ -359,9 +359,9 @@ class FRCNN(nn.Module):
 
         pred_bbox = pred_bbox.reshape(-1, self.num_classes * 4)
         pred_bbox = pred_bbox.clamp(min=0, max=1)
-        bbox, label, score = self._suppress(pred_bbox, pred_cls)
+        bbox, label, score = self._suppress(pred_bbox, pred_cls, opts)
 
-        if visualization:
+        if opts.demo_vis:
 
             img_height, img_width = x.size()[2:]
             multiplier = np.array([img_width, img_height, img_width, img_height])
@@ -383,8 +383,15 @@ class FRCNN(nn.Module):
 
             for j in range(len(bbox)):
 
-                from utils import voc_color_array, voc_label_map
-                voc_label_list = list(voc_label_map.keys())
+                if opts.data_type == 'voc':
+                    from utils import voc_color_array, voc_label_map
+                    label_list = list(voc_label_map.keys())
+                    color_array = voc_color_array
+
+                elif opts.data_type == 'coco':
+                    from utils import coco_color_array, coco_label_map
+                    label_list = list(coco_label_map.keys())
+                    color_array = coco_color_array
 
                 x_min = int(bbox[j][0])
                 y_min = int(bbox[j][1])
@@ -394,11 +401,11 @@ class FRCNN(nn.Module):
                 cv2.rectangle(im_show,
                               pt1=(x_min, y_min),
                               pt2=(x_max, y_max),
-                              color=voc_color_array[label[j]],
+                              color=color_array[label[j]],
                               thickness=2)
 
                 # text_size
-                text_size = cv2.getTextSize(text=voc_label_list[label[j]] + ' {:.2f}'.format(score[j].item()),
+                text_size = cv2.getTextSize(text=label_list[label[j]] + ' {:.2f}'.format(score[j].item()),
                                             fontFace=cv2.FONT_HERSHEY_PLAIN,
                                             fontScale=1,
                                             thickness=1)[0]
@@ -407,12 +414,12 @@ class FRCNN(nn.Module):
                 cv2.rectangle(im_show,
                               pt1=(x_min, y_min),
                               pt2=(x_min + text_size[0] + 3, y_min + text_size[1] + 4),
-                              color=voc_color_array[label[j]],
+                              color=color_array[label[j]],
                               thickness=-1)
 
                 # put text
                 cv2.putText(im_show,
-                            text=voc_label_list[label[j]] + ' {:.2f}'.format(score[j].item()),
+                            text=label_list[label[j]] + ' {:.2f}'.format(score[j].item()),
                             org=(x_min + 10, y_min + 10),   # must be int
                             fontFace=0,
                             fontScale=0.4,
@@ -421,7 +428,7 @@ class FRCNN(nn.Module):
             return bbox, label, score, im_show
         return bbox, label, score
 
-    def _suppress(self, raw_cls_bbox, raw_prob):
+    def _suppress(self, raw_cls_bbox, raw_prob, opts):
         bbox = list()
         label = list()
         score = list()
@@ -430,7 +437,7 @@ class FRCNN(nn.Module):
         for l in range(1, self.num_classes):
             cls_bbox_l = raw_cls_bbox.reshape((-1, self.num_classes, 4))[:, l, :]
             prob_l = raw_prob[:, l]
-            mask = prob_l > 0.05
+            mask = prob_l > opts.thres
             cls_bbox_l = cls_bbox_l[mask]
             prob_l = prob_l[mask]
             keep = nms(cls_bbox_l, prob_l, iou_threshold=0.3)

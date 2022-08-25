@@ -48,7 +48,7 @@ def demo(epoch, device, model, opts):
         demo_image = demo_image_transforms(demo_image).to(device)
 
         tic = time.time()
-        _, _, _, im_show = model.predict(demo_image, opts.demo_vis)
+        _, _, _, im_show = model.predict(demo_image, opts)
 
         # save_files
         demo_result_path = os.path.join(opts.demo_root, 'detection_results')
@@ -93,7 +93,12 @@ def demo_worker(rank, opts):
     device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
     # 5. model
-    model = FRCNN()
+    if opts.data_type == 'voc':
+        opts.num_classes = 21
+    if opts.data_type == 'coco':
+        opts.num_classes = 81
+
+    model = FRCNN(num_classes=opts.num_classes)
     model = model.to(device)
 
     demo(epoch=opts.demo_epoch,
