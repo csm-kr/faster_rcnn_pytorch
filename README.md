@@ -40,7 +40,22 @@ COCO
 |------------|-------------|------------|------------| --------------- |
 |papers      |train        |  COCOval   | **         |   21.2          |
 |papers      |trainval     |  COCOval   | **         |   -             |
-|this repo   |COCOtrain2017|  minival   | **         |   -             |
+|this repo   |COCOtrain2017|  minival   | **         |   20.7(-0.50%)  |
+
+```
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.207
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.387
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.199
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.039
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.237
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.352
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.209
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.294
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.298
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.055
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.354
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.510
+```
 
 ** A way to resize frcnn is to make the image different size if the original image is different.
 
@@ -54,6 +69,12 @@ VOC
 ![000015](./figures/000010.jpg)
 ![000021](./figures/000021.jpg)
 
+COCO
+
+![000000000025](./figures/000000000025.jpg)
+
+![000000000036](./figures/000000000036.jpg)
+
 
 ### Quick Start for test
 
@@ -62,7 +83,7 @@ VOC
 - VOC
 - faster_rcnn_voc.best.pth.tar [here](https://livecauac-my.sharepoint.com/:u:/g/personal/csm8167_cau_ac_kr/EaOuSelMyTJKin5B5C2k8D4BzXIC9Ej62CArAUXrpk9Hgg) (about 1GB)
 - COCO
-- faster_rcnn_cococ.best.pth.tar here
+- faster_rcnn_cococ.best.pth.tar [here](https://livecauac-my.sharepoint.com/:u:/g/personal/csm8167_cau_ac_kr/Efu3JLCm7RFNgGzRp-dNzYABWsFh-VrCUUCQ-rGNfbTk7A) (about 1GB)
 
 2 - put tar file in like this (in saves)
 
