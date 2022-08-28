@@ -8,6 +8,8 @@ from config import get_args_parser
 # dataset / model / loss
 from dataset.build import build_dataset
 from model import FRCNN
+from model_dc5 import FRCNN_DC5
+
 from loss import FRCNNLoss
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 
@@ -36,7 +38,8 @@ def main_worker(rank, opts):
     train_loader, test_loader = build_dataset(opts)
 
     # 5. model
-    model = FRCNN(num_classes=opts.num_classes)
+    # model = FRCNN(num_classes=opts.num_classes)
+    model = FRCNN_DC5(num_classes=opts.num_classes)
     model = model.to(device)
 
     # 6. loss

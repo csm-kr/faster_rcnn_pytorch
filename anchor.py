@@ -1,6 +1,7 @@
 import time
 import torch
 import numpy as np
+import math
 from utils import cxcy_to_xy, xy_to_cxcy
 
 
@@ -35,8 +36,8 @@ class FRCNNAnchorMaker(object):
                                   origin_image_size):
 
         origin_height, origin_width = origin_image_size
-        width = origin_width // self.base_size
-        height = origin_height // self.base_size
+        width = math.ceil(origin_width / self.base_size)
+        height = math.ceil(origin_height / self.base_size)
         feat_stride = self.base_size
 
         shift_x = np.arange(0, width * feat_stride, feat_stride)

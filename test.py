@@ -35,7 +35,7 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
         labels = [l.to(device) for l in labels]
 
         # 3. forward(predict)
-        pred_bboxes, pred_labels, pred_scores = model.predict(images, opts.test_vis)
+        pred_bboxes, pred_labels, pred_scores = model.predict(images, opts)
 
         if opts.data_type == 'voc':
 
@@ -94,6 +94,7 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
 
 import argparse
 from model import FRCNN
+from model_dc5 import FRCNN_DC5
 from loss import FRCNNLoss
 from dataset.build import build_dataset
 from config import get_args_parser
@@ -115,6 +116,7 @@ def test_worker(rank, opts):
 
     # 5. model
     model = FRCNN(opts.num_classes)
+    model = FRCNN_DC5(opts.num_classes)
     model = model.to(device)
 
     # 6. loss
@@ -133,6 +135,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser('faster rcnn testing', parents=[get_args_parser()])
     opts = parser.parse_args()
+
+    opts.thres = 0.05
+    opts.demo_vis = False
 
     opts.world_size = len(opts.gpu_ids)
     opts.num_workers = len(opts.gpu_ids) * 4

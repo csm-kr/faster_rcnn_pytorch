@@ -7,6 +7,7 @@ from torchvision.ops import nms
 from anchor import FRCNNAnchorMaker
 from utils import xy_to_cxcy, cxcy_to_xy, encode, decode, find_jaccard_overlap
 from torchvision.ops import RoIPool
+from resnet_dc5 import Resnet50
 
 
 class RegionProposal(nn.Module):
@@ -91,14 +92,14 @@ class FastRCNNHead(nn.Module):
                  ):
         super().__init__()
         self.num_classes = num_classes
-        self.cls_head = nn.Linear(4096, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
-        self.reg_head = nn.Linear(4096, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
+        self.cls_head = nn.Linear(1024, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
+        self.reg_head = nn.Linear(1024, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
         self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
         self.classifier = classifier
 
         # initialization
-        normal_init(self.cls_head, 0, 0.01)
-        normal_init(self.reg_head, 0, 0.001)
+        # normal_init(self.cls_head, 0, 0.01)
+        # normal_init(self.reg_head, 0, 0.001)
 
     def forward(self, features, roi):
         # ** roi 가 0 ~ 1 사이의 값으로 들어온다. --> scale roi **
@@ -257,7 +258,7 @@ class RPNTargetMaker(nn.Module):
         return rpn_tg_cls, rpn_tg_reg
 
 
-class FRCNN(nn.Module):
+class FRCNN_DC5(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
@@ -265,20 +266,17 @@ class FRCNN(nn.Module):
         self.num_classes = num_classes
 
         # extractor
-        backbone = vgg16(pretrained=True)
-        self.extractor = nn.Sequential(
-            *list(backbone.features.children())[:-1]
-        )
-        self.extractor[-7].ceil_mode = True
+        backbone = Resnet50(pretrained=True)
+        self.extractor = nn.Sequential(backbone)
 
         # classifier
-        self.classifier = nn.Sequential(nn.Linear(in_features=25088, out_features=4096),
+        self.classifier = nn.Sequential(nn.Linear(in_features=100352, out_features=1024),
                                         nn.ReLU(inplace=True),
-                                        nn.Linear(in_features=4096, out_features=4096),
+                                        nn.Linear(in_features=1024, out_features=1024),
                                         nn.ReLU(inplace=True))
 
         # region proposal network
-        self.rpn = RegionProposalNetwork(in_channels=512, out_channels=512)
+        self.rpn = RegionProposalNetwork(in_channels=2048, out_channels=2048)
         # region proposal
         self.rp = RegionProposal()
         # anchor
@@ -293,6 +291,11 @@ class FRCNN(nn.Module):
 
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def freeze_bn(self):
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
 
     def forward(self, x, bbox, label):
 
@@ -460,6 +463,6 @@ def normal_init(m, mean, stddev):
 
 
 if __name__ == '__main__':
-    model = FRCNN()
+    model = FRCNN_DC5(num_classes=81)
     print(model.extractor)
     print(model.classifier)
