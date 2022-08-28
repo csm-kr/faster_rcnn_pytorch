@@ -113,9 +113,10 @@ if __name__ == '__main__':
 
     # label =
     tic = time.time()
-    from model_dc5 import FRCNN_DC5
-    frcnn = FRCNN_DC5(num_classes=21).cuda()
-    frcnn = FRCNN(num_classes=21).cuda()
+    from model_dc5 import FRCNN
+    frcnn = FRCNN(num_classes=21, model_type='vgg_origin').cuda()
+    frcnn = FRCNN(num_classes=21, model_type='resnet_dc5').cuda()
+    # frcnn = FRCNN(num_classes=21).cuda()
     pred, target = frcnn(img, bbox, label)
     pred_rpn_cls, pred_rpn_reg, pred_fast_cls, pred_fast_rcnn_reg = pred
     target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg = target

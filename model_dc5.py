@@ -290,7 +290,10 @@ class FRCNN(nn.Module):
         extractor = None
         if model_type == "vgg_origin":
             extractor = nn.Sequential(*list(vgg16(pretrained=True).features.children())[:-1])
-            extractor[-7].ceil_mode = True
+            for m in extractor.children():
+                if isinstance(m, nn.MaxPool2d):
+                    m.ceil_mode = True
+            # extractor[-7].ceil_mode = True
         elif model_type == "resnet_dc5":
             extractor = nn.Sequential(Resnet50(pretrained=True))
         return extractor
@@ -496,7 +499,7 @@ def normal_init(m, mean, stddev):
 
 
 if __name__ == '__main__':
-    # model = FRCNN(num_classes=81, model_type='vgg_origin')
-    model = FRCNN(num_classes=81, model_type='resnet_dc5')
+    model = FRCNN(num_classes=81, model_type='vgg_origin')
+    # model = FRCNN(num_classes=81, model_type='resnet_dc5')
     print(model.extractor)
     print(model.classifier)
