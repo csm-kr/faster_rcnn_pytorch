@@ -88,18 +88,19 @@ class FastRCNNHead(nn.Module):
     def __init__(self,
                  num_classes,
                  roi_size,
-                 classifier
+                 classifier,
+                 in_channel
                  ):
         super().__init__()
         self.num_classes = num_classes
-        self.cls_head = nn.Linear(1024, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
-        self.reg_head = nn.Linear(1024, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
+        self.cls_head = nn.Linear(in_channel, num_classes)      # roi 에 대하여 클래스를 만들어야 하므로
+        self.reg_head = nn.Linear(in_channel, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
         self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
         self.classifier = classifier
 
         # initialization
-        # normal_init(self.cls_head, 0, 0.01)
-        # normal_init(self.reg_head, 0, 0.001)
+        normal_init(self.cls_head, 0, 0.01)
+        normal_init(self.reg_head, 0, 0.001)
 
     def forward(self, features, roi):
         # ** roi 가 0 ~ 1 사이의 값으로 들어온다. --> scale roi **
@@ -258,25 +259,18 @@ class RPNTargetMaker(nn.Module):
         return rpn_tg_cls, rpn_tg_reg
 
 
-class FRCNN_DC5(nn.Module):
-    def __init__(self, num_classes):
+class FRCNN(nn.Module):
+    def __init__(self, num_classes, model_type='resnet_dc5'):
         super().__init__()
 
         # num_classes
         self.num_classes = num_classes
-
         # extractor
-        backbone = Resnet50(pretrained=True)
-        self.extractor = nn.Sequential(backbone)
-
+        self.extractor = self.build_extractor(model_type)
         # classifier
-        self.classifier = nn.Sequential(nn.Linear(in_features=100352, out_features=1024),
-                                        nn.ReLU(inplace=True),
-                                        nn.Linear(in_features=1024, out_features=1024),
-                                        nn.ReLU(inplace=True))
-
+        self.classifier = self.build_classifier(model_type)
         # region proposal network
-        self.rpn = RegionProposalNetwork(in_channels=2048, out_channels=2048)
+        self.rpn = self.build_rpn(model_type)
         # region proposal
         self.rp = RegionProposal()
         # anchor
@@ -286,11 +280,50 @@ class FRCNN_DC5(nn.Module):
         # fast rcnn target
         self.fast_rcnn_target_maker = FastRcnnTargetMaker()
         # fast rcnn head
-        self.fast_rcnn_head = FastRCNNHead(num_classes=num_classes, roi_size=7, classifier=self.classifier)
+        self.fast_rcnn_head = self.build_head(num_classes, model_type, self.classifier)
         print("num_params : ", self.count_parameters())
 
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    def build_extractor(self, model_type):
+        extractor = None
+        if model_type == "vgg_origin":
+            extractor = nn.Sequential(*list(vgg16(pretrained=True).features.children())[:-1])
+            extractor[-7].ceil_mode = True
+        elif model_type == "resnet_dc5":
+            extractor = nn.Sequential(Resnet50(pretrained=True))
+        return extractor
+
+    def build_classifier(self, model_type):
+        classifier = None
+        if model_type == "vgg_origin":
+            classifier = nn.Sequential(nn.Linear(in_features=25088, out_features=4096),
+                                       nn.ReLU(inplace=True),
+                                       nn.Linear(in_features=4096, out_features=4096),
+                                       nn.ReLU(inplace=True))
+        elif model_type == "resnet_dc5":
+            classifier = nn.Sequential(nn.Linear(in_features=100352, out_features=1024),
+                                       nn.ReLU(inplace=True),
+                                       nn.Linear(in_features=1024, out_features=1024),
+                                       nn.ReLU(inplace=True))
+        return classifier
+
+    def build_rpn(self, model_type):
+        rpn = None
+        if model_type == "vgg_origin":
+            rpn = RegionProposalNetwork(in_channels=512, out_channels=512)
+        elif model_type == "resnet_dc5":
+            rpn = RegionProposalNetwork(in_channels=2048, out_channels=2048)
+        return rpn
+
+    def build_head(self, num_classes, model_type, classifier):
+        head = None
+        if model_type == "vgg_origin":
+            head = FastRCNNHead(num_classes=num_classes, roi_size=7, classifier=classifier, in_channel=4096)
+        elif model_type == "resnet_dc5":
+            head = FastRCNNHead(num_classes=num_classes, roi_size=7, classifier=classifier, in_channel=1024)
+        return head
 
     def freeze_bn(self):
         for layer in self.modules():
@@ -463,6 +496,7 @@ def normal_init(m, mean, stddev):
 
 
 if __name__ == '__main__':
-    model = FRCNN_DC5(num_classes=81)
+    # model = FRCNN(num_classes=81, model_type='vgg_origin')
+    model = FRCNN(num_classes=81, model_type='resnet_dc5')
     print(model.extractor)
     print(model.classifier)

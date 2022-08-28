@@ -91,7 +91,7 @@ class FastRCNNHead(nn.Module):
                  ):
         super().__init__()
         self.num_classes = num_classes
-        self.cls_head = nn.Linear(4096, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
+        self.cls_head = nn.Linear(4096, num_classes)      # roi 에 대하여 클래스를 만들어야 하므로
         self.reg_head = nn.Linear(4096, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
         self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
         self.classifier = classifier
@@ -265,10 +265,7 @@ class FRCNN(nn.Module):
         self.num_classes = num_classes
 
         # extractor
-        backbone = vgg16(pretrained=True)
-        self.extractor = nn.Sequential(
-            *list(backbone.features.children())[:-1]
-        )
+        self.extractor = nn.Sequential(*list(vgg16(pretrained=True).features.children())[:-1])
         self.extractor[-7].ceil_mode = True
 
         # classifier
