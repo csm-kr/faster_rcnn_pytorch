@@ -7,8 +7,8 @@ from config import get_args_parser
 
 # dataset / model / loss
 from dataset.build import build_dataset
-from model import FRCNN
-from model_dc5 import FRCNN_DC5
+# from model import FRCNN
+from model_dc5 import FRCNN
 
 from loss import FRCNNLoss
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
@@ -38,12 +38,11 @@ def main_worker(rank, opts):
     train_loader, test_loader = build_dataset(opts)
 
     # 5. model
-    # model = FRCNN(num_classes=opts.num_classes)
-    model = FRCNN_DC5(num_classes=opts.num_classes)
+    model = FRCNN(num_classes=opts.num_classes, model_type=opts.model_type, loss_type=opts.loss_type)
     model = model.to(device)
 
     # 6. loss
-    criterion = FRCNNLoss()
+    criterion = FRCNNLoss(loss_type=opts.loss_type)
 
     # 7. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),
@@ -96,7 +95,7 @@ def main_worker(rank, opts):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser('VGG16 training', parents=[get_args_parser()])
+    parser = argparse.ArgumentParser('ResnetDC5 FRCNN training', parents=[get_args_parser()])
     opts = parser.parse_args()
 
     opts.world_size = len(opts.gpu_ids)

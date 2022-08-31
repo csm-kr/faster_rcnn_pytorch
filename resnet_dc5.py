@@ -358,3 +358,7 @@ if __name__ == '__main__':
 
     img = torch.randn([3, 3, 600, 600])
     print(model(img).size())
+
+    img = torch.randn([3, 3, 600, 600])
+    conv = nn.Conv2d(3, 512, kernel_size=(3, 3), stride=(1, 1), padding=(2, 2), dilation=(2, 2), bias=False)
+    print(conv(img).size())

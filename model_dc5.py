@@ -260,7 +260,7 @@ class RPNTargetMaker(nn.Module):
 
 
 class FRCNN(nn.Module):
-    def __init__(self, num_classes, model_type='resnet_dc5'):
+    def __init__(self, num_classes, model_type='resnet_dc5', loss_type=None):
         super().__init__()
 
         # num_classes
@@ -281,6 +281,8 @@ class FRCNN(nn.Module):
         self.fast_rcnn_target_maker = FastRcnnTargetMaker()
         # fast rcnn head
         self.fast_rcnn_head = self.build_head(num_classes, model_type, self.classifier)
+        # loss type
+        self.loss_type = loss_type
         print("num_params : ", self.count_parameters())
 
     def count_parameters(self):
@@ -366,8 +368,12 @@ class FRCNN(nn.Module):
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(128, -1, 4)
         pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128).long(), target_fast_rcnn_cls.long()]
 
+        if self.loss_type == 'giou':
+            return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
+               (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg), anchor, sample_rois
+
         return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
-               (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg)
+               (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg), None, None
 
     def predict(self, x, opts):
 
@@ -499,7 +505,7 @@ def normal_init(m, mean, stddev):
 
 
 if __name__ == '__main__':
-    model = FRCNN(num_classes=81, model_type='vgg_origin')
-    # model = FRCNN(num_classes=81, model_type='resnet_dc5')
+    # model = FRCNN(num_classes=81, model_type='vgg_origin')
+    model = FRCNN(num_classes=81, model_type='resnet_dc5')
     print(model.extractor)
     print(model.classifier)
