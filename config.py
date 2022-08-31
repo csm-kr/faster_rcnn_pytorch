@@ -16,7 +16,8 @@ def get_args_parser():
     # dataset
     parser.add_argument('--name', type=str, default='faster_rcnn_voc', help='experiment name')   # FIXME
     # parser.add_argument('--name', type=str, default='faster_rcnn_coco', help='experiment name')   # FIXME
-    parser.add_argument('--model_type', type=str, default='resnet_dc5', help='model type : [dc5, ]')
+    parser.add_argument('--model_type', type=str, default='resnet_dc5', help='model type : [resnet_dc5, ]')
+    parser.add_argument('--loss_type', type=str, default='giou', help='model type : giou, smoothl1]')
     # parser.add_argument('--model_type', type=str, default='vgg_origin', help='model type : [dc5, ]')
 
     # voc
