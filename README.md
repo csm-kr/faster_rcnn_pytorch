@@ -111,6 +111,11 @@ test.py --name faster_rcnn_voc --root your own root --data_type voc
 test.py --name faster_rcnn_coco --root your own root --data_type coco
 ```
 
+### Update FRCNN (for implementation of original paper)
+- [x] Model - Resnet DC5
+- [x] Loss  - gIoU Loss
+- [ ] Data  - Random crop (DETR)
+- [ ] Train - Train schedule x9 
 
 ### Process of faster rcnn
 
