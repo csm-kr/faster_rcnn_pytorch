@@ -93,8 +93,8 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
         return result_best
 
 import argparse
-from model import FRCNN
-from model_dc5 import FRCNN_DC5
+# from model import FRCNN
+from model_dc5 import FRCNN
 from loss import FRCNNLoss
 from dataset.build import build_dataset
 from config import get_args_parser
@@ -115,8 +115,8 @@ def test_worker(rank, opts):
     _, test_loader = build_dataset(opts)
 
     # 5. model
+    # model = FRCNN(opts.num_classes)
     model = FRCNN(opts.num_classes)
-    model = FRCNN_DC5(opts.num_classes)
     model = model.to(device)
 
     # 6. loss
