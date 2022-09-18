@@ -14,27 +14,28 @@ def get_args_parser():
     parser.add_argument('--log_dir', type=str, default='./logs')
 
     # dataset
-    parser.add_argument('--name', type=str, default='faster_rcnn_voc', help='experiment name')   # FIXME
+    parser.add_argument('--name', type=str, default='faster_rcnn_coco_dc5_giou', help='experiment name')   # FIXME
     # parser.add_argument('--name', type=str, default='faster_rcnn_coco', help='experiment name')   # FIXME
     parser.add_argument('--model_type', type=str, default='resnet_dc5', help='model type : [resnet_dc5, ]')
     parser.add_argument('--loss_type', type=str, default='giou', help='model type : giou, smoothl1]')
     # parser.add_argument('--model_type', type=str, default='vgg_origin', help='model type : [dc5, ]')
 
     # voc
-    parser.add_argument('--root', type=str, default=r'D:\data\voc')
+    # parser.add_argument('--root', type=str, default=r'D:\data\voc')
     # parser.add_argument('--root', type=str, default=r'/home/cvmlserver7/Sungmin/data/voc')
-    parser.add_argument('--data_type', type=str, default='voc')
+    # parser.add_argument('--data_type', type=str, default='voc')
 
     # coco
     # parser.add_argument('--root', type=str, default=r'D:\data\coco')
     # parser.add_argument('--root', type=str, default=r'/home/cvmlserver7/Sungmin/data/coco')
-    # parser.add_argument('--data_type', type=str, default='coco')
+    parser.add_argument('--root', type=str, default=r'/home/cvmlserver8/Jinhee/data/coco')
+    parser.add_argument('--data_type', type=str, default='coco')
 
     parser.add_argument('--num_classes', type=int, default=0)
 
     # training
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument('--epoch', type=int, default=20)
+    parser.add_argument('--epoch', type=int, default=110)
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--num_workers', type=int, default=0)
     parser.add_argument('--warmup_epoch', type=int, default=1)
@@ -63,7 +64,7 @@ def get_args_parser():
     parser.set_defaults(demo_vis=False)
 
     # for multi-gpu
-    parser.add_argument('--gpu_ids', nargs="+", default=['0'])   # usage : --gpu_ids 0, 1, 2, 3
+    parser.add_argument('--gpu_ids', nargs="+", default=['2'])   # usage : --gpu_ids 0, 1, 2, 3
     parser.add_argument('--rank', type=int, default=0)
     parser.add_argument('--world_size', type=int, default=1)
 

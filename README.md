@@ -16,8 +16,9 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 - **Use approximate joint training**
 - optimizer : SGD
-- epoch : 15 
-- initial learning rate 0.001
+- epoch : 12 x 9 + 2 = 110 
+- initial learning rate : 0.01
+- lr scheduler : cosine annealing (to 5e-4)
 - weight decay : 5e-4
 - momentum : 0.9
 

@@ -52,7 +52,7 @@ def main_worker(rank, opts):
 
     # 8. scheduler
     # scheduler = StepLR(optimizer=optimizer, step_size=8, gamma=0.1)
-    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=0.00005)
+    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=1e-5)
 
     # 9. logger
     xl_log_saver = None
