@@ -91,7 +91,7 @@ class FastRCNNHead(nn.Module):
                  ):
         super().__init__()
         self.num_classes = num_classes
-        self.cls_head = nn.Linear(4096, num_classes)      # roi 에 대하여 클래스를 만들어야 하므로
+        self.cls_head = nn.Linear(4096, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
         self.reg_head = nn.Linear(4096, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
         self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
         self.classifier = classifier
@@ -261,21 +261,21 @@ class FRCNN(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
 
-        # num_classes
+        # backbone
+        backbone = vgg16(pretrained=True)
+
         self.num_classes = num_classes
-
         # extractor
-        self.extractor = nn.Sequential(*list(vgg16(pretrained=True).features.children())[:-1])
-        self.extractor[-7].ceil_mode = True
-
-        # classifier
+        self.extractor = nn.Sequential(
+            *list(backbone.features.children())[:-1]
+        )
         self.classifier = nn.Sequential(nn.Linear(in_features=25088, out_features=4096),
                                         nn.ReLU(inplace=True),
                                         nn.Linear(in_features=4096, out_features=4096),
                                         nn.ReLU(inplace=True))
 
         # region proposal network
-        self.rpn = RegionProposalNetwork(in_channels=512, out_channels=512)
+        self.rpn = RegionProposalNetwork()
         # region proposal
         self.rp = RegionProposal()
         # anchor

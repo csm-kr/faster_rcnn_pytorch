@@ -16,9 +16,8 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 - **Use approximate joint training**
 - optimizer : SGD
-- epoch : 12 x 9 + 2 = 110 
-- initial learning rate : 0.01
-- lr scheduler : cosine annealing (to 5e-4)
+- epoch : 15 
+- initial learning rate 0.001
 - weight decay : 5e-4
 - momentum : 0.9
 
@@ -108,15 +107,21 @@ utils.py
 
 3 - set root and run test.py
 ```
-test.py --name faster_rcnn_voc --root your own root --data_type voc
-test.py --name faster_rcnn_coco --root your own root --data_type coco
+test.py --config ./config_files/faster_rcnn_voc_test.txt
+test.py --config ./config_files/faster_rcnn_coco_test.txt
 ```
 
-### Update FRCNN (for implementation of original paper)
-- [x] Model - Resnet DC5
-- [x] Loss  - gIoU Loss
-- [ ] Data  - Random crop (DETR)
-- [ ] Train - Train schedule x9 
+4 - for train 
+```
+main.py --config ./config_files/faster_rcnn_coco_train.txt
+main.py --config ./config_files/faster_rcnn_voc_train.txt
+```
+
+5 - for demo 
+```
+demo.py --config ./config_files/faster_rcnn_coco_demo.txt
+demo.py --config ./config_files/faster_rcnn_voc_demo.txt
+```
 
 ### Process of faster rcnn
 
