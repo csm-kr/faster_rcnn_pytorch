@@ -1,0 +1,10 @@
+# name
+name = faster_rcnn_voc
+
+# testing
+thres = 0.5
+
+# demo_root
+demo_root = ./demo_figures/voc
+data_type = voc
+demo_vis_true
