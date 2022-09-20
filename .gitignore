@@ -22,6 +22,9 @@ results/
 # coco_test_dev/
 .cache_dir/
 
+# demo
+detection_results/
+
 # pycharm IDE
 __pycache__/
 *.py[cod]
