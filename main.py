@@ -2,16 +2,14 @@ import os
 import torch
 import visdom
 
-import argparse
+import configargparse
 from config import get_args_parser
 
 # dataset / model / loss
 from dataset.build import build_dataset
-# from model import FRCNN
-from model_dc5 import FRCNN
-
+from model import FRCNN
 from loss import FRCNNLoss
-from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 # train and test
 from train import train_one_epoch
@@ -19,7 +17,7 @@ from test import test_and_eval
 
 # log
 from log import XLLogSaver
-
+# resume
 from utils import resume
 
 
@@ -38,11 +36,11 @@ def main_worker(rank, opts):
     train_loader, test_loader = build_dataset(opts)
 
     # 5. model
-    model = FRCNN(num_classes=opts.num_classes, model_type=opts.model_type, loss_type=opts.loss_type)
+    model = FRCNN(num_classes=opts.num_classes)
     model = model.to(device)
 
     # 6. loss
-    criterion = FRCNNLoss(loss_type=opts.loss_type)
+    criterion = FRCNNLoss()
 
     # 7. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),
@@ -51,8 +49,7 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 8. scheduler
-    # scheduler = StepLR(optimizer=optimizer, step_size=8, gamma=0.1)
-    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=1e-5)
+    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=0.00005)
 
     # 9. logger
     xl_log_saver = None
@@ -94,8 +91,7 @@ def main_worker(rank, opts):
 
 
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser('ResnetDC5 FRCNN training', parents=[get_args_parser()])
+    parser = configargparse.ArgumentParser('Faster rcnn training', parents=[get_args_parser()])
     opts = parser.parse_args()
 
     opts.world_size = len(opts.gpu_ids)

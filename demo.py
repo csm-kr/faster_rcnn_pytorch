@@ -77,9 +77,8 @@ def demo(epoch, device, model, opts):
     tic = time.time()
 
 
-import argparse
+import configargparse
 from model import FRCNN
-from model_dc5 import FRCNN_DC5
 from loss import FRCNNLoss
 from dataset.build import build_dataset
 from config import get_args_parser
@@ -90,9 +89,6 @@ def demo_worker(rank, opts):
     # 1. config
     print(opts)
 
-    opts.thres = 0.5
-    opts.demo_vis = True
-
     # 2. device
     device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
@@ -102,8 +98,7 @@ def demo_worker(rank, opts):
     if opts.data_type == 'coco':
         opts.num_classes = 81
 
-    # model = FRCNN(num_classes=opts.num_classes)
-    model = FRCNN_DC5(num_classes=opts.num_classes)
+    model = FRCNN(num_classes=opts.num_classes)
     model = model.to(device)
 
     demo(epoch=opts.demo_epoch,
@@ -114,7 +109,7 @@ def demo_worker(rank, opts):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser('faster rcnn demo', parents=[get_args_parser()])
+    parser = configargparse.ArgumentParser('faster rcnn demo', parents=[get_args_parser()])
     opts = parser.parse_args()
 
     opts.world_size = len(opts.gpu_ids)
