@@ -7,7 +7,6 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
 
     tic = time.time()
     model.train()
-    # model.module.freeze_bn()  # as attach module, we use data parallel
 
     for idx, data in enumerate(train_loader):
 
@@ -20,8 +19,8 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
 
-        pred, target, anchor, sample_roi = model(images, boxes, labels)  # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
-        loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss = criterion(pred, target, anchor, sample_roi)
+        pred, target = model(images, boxes, labels)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
+        loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss = criterion(pred, target)
 
         # sgd
         optimizer.zero_grad()

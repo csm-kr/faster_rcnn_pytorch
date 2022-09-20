@@ -49,8 +49,6 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
             coco_ids = test_loader.dataset.coco_ids
             info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
 
-        # eval_info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
-
         # 4. get info for evaluation
         evaluator.get_info(info)
 
@@ -93,8 +91,7 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
         return result_best
 
 import argparse
-# from model import FRCNN
-from model_dc5 import FRCNN
+from model import FRCNN
 from loss import FRCNNLoss
 from dataset.build import build_dataset
 from config import get_args_parser
@@ -115,7 +112,6 @@ def test_worker(rank, opts):
     _, test_loader = build_dataset(opts)
 
     # 5. model
-    # model = FRCNN(opts.num_classes)
     model = FRCNN(opts.num_classes)
     model = model.to(device)
 
@@ -132,12 +128,10 @@ def test_worker(rank, opts):
 
 
 if __name__ == '__main__':
+    import configargparse
 
-    parser = argparse.ArgumentParser('faster rcnn testing', parents=[get_args_parser()])
+    parser = configargparse.ArgumentParser('faster rcnn testing', parents=[get_args_parser()])
     opts = parser.parse_args()
-
-    opts.thres = 0.05
-    opts.demo_vis = False
 
     opts.world_size = len(opts.gpu_ids)
     opts.num_workers = len(opts.gpu_ids) * 4

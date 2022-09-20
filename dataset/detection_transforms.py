@@ -273,51 +273,6 @@ class DetResize(object):
                                 max_size=self.max_size,
                                 box_normalization=self.box_normalization)
 
-##
-class DetRandomResize(object):
-
-    def __init__(self, sizes, max_size=None, box_normalization=True):
-        """
-
-        :param size:
-        :param max_size:
-        :param norm_boxes: normalized boxes if True : [0 ~ 1]
-        """
-        self.sizes = sizes
-        self.max_size = max_size
-        self.box_normalization = box_normalization
-
-    def __call__(self, image, boxes, labels):
-        size = random.choice(self.sizes)
-        return detection_resize(image=image, boxes=boxes, labels=labels,
-                                size=size,
-                                max_size=self.max_size,
-                                box_normalization=self.box_normalization)
-
-
-class DetRandomSizeCrop(object):
-    def __init__(self):
-        return
-
-    def __call__(self, image, boxes, labels):
-        return detection_zoonin(image, boxes, labels, max_trials=50)
-
-
-class DetRandomSelect(object):
-    """
-    Randomly selects between transforms1 and transforms2,
-    with probability p for transforms1 and (1 - p) for transforms2
-    """
-    def __init__(self, transforms1, transforms2, p=0.5):
-        self.transforms1 = transforms1
-        self.transforms2 = transforms2
-        self.p = p
-
-    def __call__(self, image, boxes, labels):
-        if random.random() < self.p:
-            return self.transforms1(image, boxes, labels)
-        return self.transforms2(image, boxes, labels)
-
 
 def detection_resize_only_image(image, size, max_size):
 
