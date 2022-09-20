@@ -1,0 +1,7 @@
+configargparse
+matplotlib
+opencv-python
+openpyxl
+pycocotools
+visdom
+wget
