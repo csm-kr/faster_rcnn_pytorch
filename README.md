@@ -16,7 +16,7 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 - **Use approximate joint training**
 - optimizer : SGD
-- epoch : 15 
+- epoch : 13 
 - initial learning rate 0.001
 - weight decay : 5e-4
 - momentum : 0.9
@@ -111,17 +111,42 @@ test.py --config ./config_files/faster_rcnn_voc_test.txt
 test.py --config ./config_files/faster_rcnn_coco_test.txt
 ```
 
-4 - for train 
+### Quick Start for demo
+1 - run demo.py for demo : demo at demo figures voc or coco
+```
+demo.py --config ./config_files/faster_rcnn_coco_demo.txt
+demo.py --config ./config_files/faster_rcnn_voc_demo.txt
+```
+
+### Quick Start for demo
+1 - set your data root at config
+
+config files is as follows
+
+```
+# name
+name = faster_rcnn_coco
+
+# data 
+data_root = put your root in this part
+data_type = coco
+
+# training
+epoch = 13
+batch_size = 1
+
+# testing
+thres = 0.05
+```
+
+2 - run main.py for train 
+
 ```
 main.py --config ./config_files/faster_rcnn_coco_train.txt
 main.py --config ./config_files/faster_rcnn_voc_train.txt
 ```
 
-5 - for demo 
-```
-demo.py --config ./config_files/faster_rcnn_coco_demo.txt
-demo.py --config ./config_files/faster_rcnn_voc_demo.txt
-```
+
 
 ### Process of faster rcnn
 
