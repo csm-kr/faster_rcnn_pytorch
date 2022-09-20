@@ -2,7 +2,7 @@
 name = faster_rcnn_coco
 
 # data
-data_root = /home/cvmlserver9/Sungmin/data/coco
+data_root = D:/data/coco
 data_type = coco
 
 # testing

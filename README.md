@@ -118,7 +118,7 @@ demo.py --config ./config_files/faster_rcnn_coco_demo.txt
 demo.py --config ./config_files/faster_rcnn_voc_demo.txt
 ```
 
-### Quick Start for demo
+### Quick Start for train
 1 - set your data root at config
 
 config files is as follows

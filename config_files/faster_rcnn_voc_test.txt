@@ -2,7 +2,7 @@
 name = faster_rcnn_voc
 
 # data
-data_root = /home/cvmlserver9/Sungmin/data/voc
+data_root = D:/data/voc
 data_type = voc
 
 # testing
