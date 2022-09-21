@@ -1,31 +1,31 @@
 # Faster RCNN Pytorch 
-
 re-implementation of faster rcnn (NIPS2015)
 
 Please refer to https://arxiv.org/abs/1506.01497
 
-### data set
+### Dataset
 - [x] VOC  
 - [x] COCO
 
-### data augmentation (for implementation of original paper)
+### Data Augmentation (for implementation of original paper)
 - [x] Resize
 - [x] Horizontal Flip
 
-### TRAINING
-
+### Training Setting
 - **Use approximate joint training**
+```
+- batch size : 1
 - optimizer : SGD
 - epoch : 13 
 - initial learning rate 0.001
 - weight decay : 5e-4
 - momentum : 0.9
+- scheduler : cosineannealing LR (min : 5e-5)
+```
 
-### RESULTS
+### Results
 
-#### 1. qualitative result
-
-VOC
+- VOC
 
 |methods     |  Traning   |   Testing  | Resolution |   AP50          |
 |------------|------------|------------|------------| --------------- |
@@ -34,7 +34,14 @@ VOC
 |this repo   |2007        |  2007      | **         |   71.00(+1.10)  |
 |this repo   |2007 + 2012 |  2007      | **         |   75.81(+2.61)  |
 
-COCO
+
+![000001_input](./figures/000001_.jpg)
+![000001_result](./figures/000001.jpg)
+
+![000015](./figures/000010.jpg)
+![000021](./figures/000021.jpg)
+
+- COCO
 
 |methods     |  Traning    |   Testing  | Resolution |   mAP@[.5 .95]  |
 |------------|-------------|------------|------------| --------------- |
@@ -58,18 +65,6 @@ COCO
 ```
 
 ** A way to resize frcnn is to make the image different size if the original image is different.
-
-#### 2. quantitative result
-
-VOC
-
-![000001_input](./figures/000001_.jpg)
-![000001_result](./figures/000001.jpg)
-
-![000015](./figures/000010.jpg)
-![000021](./figures/000021.jpg)
-
-COCO
 
 ![000000000025](./figures/000000000025.jpg)
 
@@ -146,13 +141,11 @@ main.py --config ./config_files/faster_rcnn_coco_train.txt
 main.py --config ./config_files/faster_rcnn_voc_train.txt
 ```
 
-
-
 ### Process of faster rcnn
 
 ![Process](./figures/faster_rcnn_process.jpg)
 
-### citation
+### Citation
 If you found this implementation and pretrained model helpful, please consider citation
 ```
 @misc{csm-kr_Faster_RCNN_Pytorch,
