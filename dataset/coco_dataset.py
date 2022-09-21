@@ -305,4 +305,4 @@ if __name__ == '__main__':
         images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
-        # print(labels)
+        print(labels)
