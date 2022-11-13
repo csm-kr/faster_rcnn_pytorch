@@ -1,0 +1,9 @@
+# name
+name = faster_rcnn_coco
+
+# data
+data_root = D:/data/coco
+data_type = coco
+
+# testing
+thres = 0.05

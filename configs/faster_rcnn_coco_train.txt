@@ -1,0 +1,13 @@
+# name
+name = faster_rcnn_coco
+
+# data - put your root in
+data_root = D:/data/coco
+data_type = coco
+
+# training
+epoch = 13
+batch_size = 1
+
+# testing
+thres = 0.05

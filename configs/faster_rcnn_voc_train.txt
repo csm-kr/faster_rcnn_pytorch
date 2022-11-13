@@ -1,0 +1,22 @@
+## name
+name = faster_rcnn_voc
+
+## visdom
+visdom_port = 7777
+
+## data
+# data_root = D:/data/voc
+data_root = /home/cvmlserver7/Sungmin/data/voc
+data_type = voc
+
+## training
+# epoch = 13
+# batch_size = 1
+
+## testing
+# thres = 0.05
+
+## demo
+
+## distributed
+gpu_ids = 0

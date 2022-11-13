@@ -1,0 +1,10 @@
+# name
+name = faster_rcnn_coco
+
+# testing
+thres = 0.5
+
+# demo_root
+demo_root = ./demo_figures/coco
+data_type = coco
+demo_vis_true
