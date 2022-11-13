@@ -88,7 +88,7 @@ if __name__ == '__main__':
     import time
     from PIL import Image
     import torchvision.transforms as tfs
-    from model import FRCNN
+    from models.model import FRCNN
 
     # 1. load image
     image = Image.open('./figures/000001.jpg').convert('RGB')

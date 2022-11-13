@@ -1,28 +1,30 @@
 import os
 import time
 import torch
+from tqdm import tqdm
 
 
-def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimizer, scheduler, opts):
+def train_one_epoch(opts, epoch, device, vis, train_loader, model, criterion, optimizer, scheduler):
 
     tic = time.time()
     model.train()
 
-    for idx, data in enumerate(train_loader):
+    for idx, data in enumerate(tqdm(train_loader)):
 
-        # set image and GT
         images = data[0]
         boxes = data[1]
         labels = data[2]
 
+        # cuda
         images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
 
+        # forward and loss
         pred, target = model(images, boxes, labels)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
         loss, rpn_cls_loss, rpn_reg_loss, fast_rcnn_cls_loss, fast_rcnn_reg_loss = criterion(pred, target)
 
-        # sgd
+        # update
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -62,12 +64,15 @@ def train_one_epoch(epoch, device, vis, train_loader, model, criterion, optimize
                                    title='training loss',
                                    legend=['Total Loss', 'RPN CLS', 'RPN REG', 'FCNN CLS', 'FCNN REG']))
 
-    save_path = os.path.join(opts.log_dir, opts.name, 'saves')
-    os.makedirs(save_path, exist_ok=True)
+    if opts.rank == 0:
+        save_path = os.path.join(opts.log_dir, opts.name, 'saves')
+        os.makedirs(save_path, exist_ok=True)
 
-    checkpoint = {'epoch': epoch,
-                  'model_state_dict': model.state_dict(),
-                  'optimizer_state_dict': optimizer.state_dict(),
-                  'scheduler_state_dict': scheduler.state_dict()}
+        # not saving all epochs
 
-    torch.save(checkpoint, os.path.join(save_path, opts.name + '.{}.pth.tar'.format(epoch)))
+        # checkpoint = {'epoch': epoch,
+        #               'model_state_dict': model.state_dict(),
+        #               'optimizer_state_dict': optimizer.state_dict(),
+        #               'scheduler_state_dict': scheduler.state_dict()}
+        #
+        # torch.save(checkpoint, os.path.join(save_path, opts.name + '.{}.pth.tar'.format(epoch)))

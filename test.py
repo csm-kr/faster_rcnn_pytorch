@@ -1,33 +1,35 @@
 import os
 import time
 import torch
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from utils import propose_region
+from tqdm import tqdm
 from evaluation.evaluator import Evaluator
 
 
 @ torch.no_grad()
-def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=None, result_best=None):
+def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=None, result_best=None, is_load=False):
 
     # 0. evaluator
     evaluator = Evaluator(data_type=opts.data_type)  # opts.data_type : voc or coco
 
-    # 1. load .pth
-    checkpoint = torch.load(f=os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.{}.pth.tar'.format(epoch)),
-                            map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    # 1. device
+    # device = torch.device(f'cuda:{int(opts.gpu_ids[opts.rank])}')
+
+    # 2. load pth
+    checkpoint = None
+    if is_load:
+        checkpoint = torch.load(f=os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.{}.pth.tar'.format(epoch)),
+                                map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+
     model.eval()
-
     tic = time.time()
-    sum_loss = 0
+    sum_loss = []
 
-    for idx, data in enumerate(test_loader):
+    for idx, data in enumerate(tqdm(test_loader)):
 
         images = data[0]
         boxes = data[1]
         labels = data[2]
-        # info = data[3][0]  # [{}]
 
         # 2. load data to device
         images = images.to(device)
@@ -77,6 +79,7 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
                            ylabel='test',
                            title='test loss',
                            legend=['mAP']))
+
     if xl_log_saver is not None:
         xl_log_saver.insert_each_epoch(contents=(epoch, mAP))
 
@@ -86,14 +89,15 @@ def test_and_eval(epoch, device, vis, test_loader, model, opts, xl_log_saver=Non
             print("update best model")
             result_best['epoch'] = epoch
             result_best['mAP'] = mAP
+            if checkpoint is None:
+                checkpoint = {'epoch': epoch,
+                              'model_state_dict': model.state_dict()}
             torch.save(checkpoint, os.path.join(opts.log_dir, opts.name, 'saves', opts.name + '.best.pth.tar'))
+    return
 
-        return result_best
 
-import argparse
-from model import FRCNN
-from loss import FRCNNLoss
 from dataset.build import build_dataset
+from models.build import build_model
 from config import get_args_parser
 
 
@@ -112,7 +116,7 @@ def test_worker(rank, opts):
     _, test_loader = build_dataset(opts)
 
     # 5. model
-    model = FRCNN(opts.num_classes)
+    model = build_model(opts)
     model = model.to(device)
 
     # 6. loss
