@@ -8,7 +8,7 @@ from config import get_args_parser
 
 # dataset / model / loss
 from dataset.build import build_dataset
-from model import FRCNN
+from models.build import build_model
 from loss import FRCNNLoss
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
@@ -18,8 +18,11 @@ from test import test_and_eval
 
 # log
 from log import XLLogSaver
+
 # resume
 from utils import resume
+
+import torch.multiprocessing as mp
 
 
 def main_worker(rank, opts):
@@ -37,7 +40,7 @@ def main_worker(rank, opts):
     train_loader, test_loader = build_dataset(opts)
 
     # 5. model
-    model = FRCNN(num_classes=opts.num_classes)
+    model = build_model(opts)
     model = model.to(device)
 
     # 6. loss
@@ -67,35 +70,44 @@ def main_worker(rank, opts):
 
     for epoch in range(opts.start_epoch, opts.epoch):
 
-        # 10. train one epoch
-        train_one_epoch(epoch=epoch,
+        # 11. train one epoch
+        train_one_epoch(opts=opts,
+                        epoch=epoch,
                         device=device,
                         vis=vis,
                         train_loader=train_loader,
                         model=model,
                         criterion=criterion,
                         optimizer=optimizer,
-                        scheduler=scheduler,
-                        opts=opts)
+                        scheduler=scheduler)
 
-        # 11. test and evaluation
-        result_best = test_and_eval(epoch=epoch,
-                                    device=device,
-                                    vis=vis,
-                                    test_loader=test_loader,
-                                    model=model,
-                                    xl_log_saver=xl_log_saver,
-                                    opts=opts,
-                                    result_best=result_best,
-                                    )
+        # 12. test and evaluation
+        test_and_eval(opts=opts,
+                      epoch=epoch,
+                      device=device,
+                      vis=vis,
+                      test_loader=test_loader,
+                      model=model,
+                      xl_log_saver=xl_log_saver,
+                      result_best=result_best,
+                      is_load=False)
         scheduler.step()
 
 
 if __name__ == '__main__':
-    parser = configargparse.ArgumentParser('Faster rcnn training', parents=[get_args_parser()])
+    parser = configargparse.ArgumentParser('Faster RCNN training', parents=[get_args_parser()])
     opts = parser.parse_args()
+
+    if len(opts.gpu_ids) > 1:
+        opts.distributed = True
 
     opts.world_size = len(opts.gpu_ids)
     opts.num_workers = len(opts.gpu_ids) * 4
 
-    main_worker(opts.rank, opts)
+    if opts.distributed:
+        mp.spawn(main_worker,
+                 args=(opts,),
+                 nprocs=opts.world_size,
+                 join=True)
+    else:
+        main_worker(opts.rank, opts)
