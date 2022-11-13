@@ -61,7 +61,7 @@ def train_one_epoch(opts, epoch, device, vis, train_loader, model, criterion, op
                          update='append',
                          opts=dict(xlabel='step',
                                    ylabel='Loss',
-                                   title='training loss',
+                                   title='train_loss_of_' + opts.name,
                                    legend=['Total Loss', 'RPN CLS', 'RPN REG', 'FCNN CLS', 'FCNN REG']))
 
     if opts.rank == 0:

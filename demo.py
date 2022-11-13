@@ -40,7 +40,7 @@ def demo(opts, device, model):
         demo_image = demo_image_transforms(demo_image_pil).to(device)
 
         tic = time.time()
-        pred_boxes, pred_labels, pred_scores = model.predict(demo_image, opts)
+        pred_boxes, pred_labels, pred_scores = model.module.predict(demo_image, opts)
 
         im_show = visualize_detection_result(demo_image_pil, pred_boxes, pred_labels, pred_scores)
 

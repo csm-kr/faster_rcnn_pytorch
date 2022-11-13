@@ -34,7 +34,7 @@ def get_args_parser():
     # demo
     parser.add_argument('--demo_epoch', type=str, default='best')
     parser.add_argument('--demo_root', type=str, help='set demo root')                 # TODO
-    parser.add_argument('--demo_image_type', type=str, default='jpg')
+    parser.add_argument('--demo_image_type', type=str)                                 # TODO
     parser.set_defaults(demo_vis=False)
     parser.add_argument('--demo_vis_true', dest='demo_vis', action='store_true')
 

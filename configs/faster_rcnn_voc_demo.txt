@@ -18,6 +18,7 @@ thres = 0.5
 
 ## demo
 demo_root = ./demo_figures/voc
+demo_image_type = jpg
 
 ## distributed
 gpu_ids = 0

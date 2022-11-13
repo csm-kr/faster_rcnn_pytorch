@@ -37,7 +37,7 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
         labels = [l.to(device) for l in labels]
 
         # 3. forward(predict)
-        pred_bboxes, pred_labels, pred_scores = model.predict(images, opts)
+        pred_bboxes, pred_labels, pred_scores = model.module.predict(images, opts)
 
         if opts.data_type == 'voc':
 
@@ -77,7 +77,7 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
                  update='append',
                  opts=dict(xlabel='step',
                            ylabel='test',
-                           title='test loss',
+                           title='test_loss_of' + opts.name,
                            legend=['mAP']))
 
     if xl_log_saver is not None:
