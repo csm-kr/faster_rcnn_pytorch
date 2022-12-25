@@ -62,8 +62,9 @@ class FastRCNNLoss(nn.Module):
 
 
 class FRCNNLoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, opts):
         super().__init__()
+        self.opts = opts
         self.rpn_loss = RPNLoss()
         self.fast_rcnn_loss = FastRCNNLoss()
 

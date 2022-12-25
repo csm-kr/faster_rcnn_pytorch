@@ -1,5 +1,5 @@
 ## name
-name = faster_rcnn_coco
+name = faster_rcnn_coco_plus
 
 ## visdom
 visdom_port = 8899
@@ -7,8 +7,11 @@ visdom_port = 8899
 ## data
 data_root = /home/cvmlserver10/data/coco
 data_type = coco
+is_mosaic_transform_true
 
 ## training
+batch_size = 2
+epoch = 36
 ## testing
 ## demo
 ## distributed
