@@ -35,11 +35,11 @@ Please refer to https://arxiv.org/abs/1506.01497
 |this repo   |2007 + 2012 |  2007      | **         |   75.81(+2.61)  |
 
 
-![000001_input](./figures/000001_.jpg)
-![000001_result](./figures/000001.jpg)
+![000001_input](https://user-images.githubusercontent.com/18729104/226520415-315a3c36-05e0-4ba7-84ee-9a5fba8d8553.jpg)
+![000001_result](https://user-images.githubusercontent.com/18729104/226520424-8de893c3-58de-4ad5-8ddf-41ebfd276d8a.jpg)
 
-![000015](./figures/000010.jpg)
-![000021](./figures/000021.jpg)
+![000015](https://user-images.githubusercontent.com/18729104/226520427-127c0a52-b372-4585-92b2-7319649390b9.jpg)
+![000021](https://user-images.githubusercontent.com/18729104/226520433-00aede93-5c95-42bf-89b5-99ed0a248de0.jpg)
 
 - COCO
 
@@ -66,9 +66,9 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 ** A way to resize frcnn is to make the image different size if the original image is different.
 
-![000000000025](./figures/000000000025.jpg)
+![000000000025](https://user-images.githubusercontent.com/18729104/226520439-d9f1ddba-e064-4984-9ec1-b01b3c70df8f.jpg)
 
-![000000000036](./figures/000000000036.jpg)
+![000000000036](https://user-images.githubusercontent.com/18729104/226520456-bd397e45-8e67-44a4-8812-cb7950a612ae.jpg)
 
 
 ### Quick Start for test
@@ -143,7 +143,7 @@ main.py --config ./config_files/faster_rcnn_voc_train.txt
 
 ### Process of faster rcnn
 
-![Process](./figures/faster_rcnn_process.jpg)
+![Process](https://user-images.githubusercontent.com/18729104/226520463-c4c054bb-9dd6-4ce9-ac78-5826d7ba7cf3.jpg)
 
 ### Citation
 If you found this implementation and pretrained model helpful, please consider citation
