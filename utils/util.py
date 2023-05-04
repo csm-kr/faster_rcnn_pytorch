@@ -36,18 +36,18 @@ def pred2target(pred, num_classes):
     pred_classes = pred_targets[..., 5:].sigmoid()  # 20 / 80  classes
     return pred_target_xy, pred_target_wh, pred_objectness, pred_classes
 
-# def encode(gt_cxywh, anc_cxywh):
-#     tg_cxy = (gt_cxywh[:, :2] - anc_cxywh[:, :2]) / anc_cxywh[:, 2:]
-#     tg_wh = torch.log(gt_cxywh[:, 2:] / anc_cxywh[:, 2:])
-#     tg_cxywh = torch.cat([tg_cxy, tg_wh], dim=1)
-#     return tg_cxywh
-#
-#
-# def decode(tcxcy, center_anchor):
-#     cxcy = tcxcy[:, :2] * center_anchor[:, 2:] + center_anchor[:, :2]
-#     wh = torch.exp(tcxcy[:, 2:]) * center_anchor[:, 2:]
-#     cxywh = torch.cat([cxcy, wh], dim=1)
-#     return cxywh
+def encode(gt_cxywh, anc_cxywh):
+    tg_cxy = (gt_cxywh[:, :2] - anc_cxywh[:, :2]) / anc_cxywh[:, 2:]
+    tg_wh = torch.log(gt_cxywh[:, 2:] / anc_cxywh[:, 2:])
+    tg_cxywh = torch.cat([tg_cxy, tg_wh], dim=1)
+    return tg_cxywh
+
+
+def decode(tcxcy, center_anchor):
+    cxcy = tcxcy[:, :2] * center_anchor[:, 2:] + center_anchor[:, :2]
+    wh = torch.exp(tcxcy[:, 2:]) * center_anchor[:, 2:]
+    cxywh = torch.cat([cxcy, wh], dim=1)
+    return cxywh
 
 def center_to_corner(cxcy):
 

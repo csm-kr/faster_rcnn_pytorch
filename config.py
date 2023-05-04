@@ -12,13 +12,15 @@ def get_args_parser():
     parser.add_argument('--vis_step', type=int, default=100)
 
     # data
+    parser.add_argument('--resize', type=int, default=600)
+    parser.add_argument('--mosaic_transform', type=bool, default=False)
     parser.add_argument('--data_root', type=str)                                        # TODO
     parser.add_argument('--data_type', type=str)                                        # TODO
     parser.add_argument('--num_classes', type=int, default=0)
     parser.add_argument('--num_workers', type=int, default=0)
 
     # training
-    parser.add_argument('--batch_size', type=int, default=1)
+    parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--epoch', type=int, default=13)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument('--warmup_epoch', type=int, default=1)

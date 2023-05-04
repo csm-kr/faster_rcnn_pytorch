@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchvision.models import vgg16
 from torchvision.ops import nms
 from anchor import FRCNNAnchorMaker
-from utils import xy_to_cxcy, cxcy_to_xy, encode, decode, find_jaccard_overlap
+from utils.util import xy_to_cxcy, cxcy_to_xy, encode, decode, find_jaccard_overlap
 from torchvision.ops import RoIPool
 
 

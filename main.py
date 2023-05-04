@@ -7,9 +7,9 @@ import configargparse
 from config import get_args_parser
 
 # dataset / model / loss
-from dataset.build import build_dataset
+from datasets.build import build_dataloader
 from models.build import build_model
-from loss import FRCNNLoss
+from losses.build import build_loss
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 # train and test
@@ -20,7 +20,8 @@ from test import test_and_eval
 from log import XLLogSaver
 
 # resume
-from utils import resume
+from utils import init_for_distributed
+from utils.util import resume
 
 import torch.multiprocessing as mp
 
@@ -30,21 +31,25 @@ def main_worker(rank, opts):
     # 1. config
     print(opts)
 
+    if opts.distributed:
+        init_for_distributed(rank, opts)
+
     # 2. device
     device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
     # 3. visdom
-    vis = visdom.Visdom(port=opts.visdom_port)
+    # vis = visdom.Visdom(port=opts.visdom_port)
+    vis = None
 
     # 4. data(set/loader)
-    train_loader, test_loader = build_dataset(opts)
+    train_loader, test_loader = build_dataloader(opts)
 
     # 5. model
     model = build_model(opts)
     model = model.to(device)
 
     # 6. loss
-    criterion = FRCNNLoss()
+    criterion = build_loss(opts)
 
     # 7. optimizer
     optimizer = torch.optim.SGD(params=model.parameters(),

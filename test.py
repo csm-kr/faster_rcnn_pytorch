@@ -96,7 +96,7 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
     return
 
 
-from dataset.build import build_dataset
+from datasets.build import build_dataloader
 from models.build import build_model
 from config import get_args_parser
 
@@ -113,7 +113,7 @@ def test_worker(rank, opts):
     vis = None
 
     # 4. data(set/loader)
-    _, test_loader = build_dataset(opts)
+    _, test_loader = build_dataloader(opts)
 
     # 5. model
     model = build_model(opts)

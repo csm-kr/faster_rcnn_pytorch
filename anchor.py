@@ -1,7 +1,7 @@
 import time
 import torch
 import numpy as np
-from utils import cxcy_to_xy, xy_to_cxcy
+from utils.util import cxcy_to_xy, xy_to_cxcy
 
 
 class FRCNNAnchorMaker(object):
