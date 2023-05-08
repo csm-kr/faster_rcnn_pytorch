@@ -352,6 +352,7 @@ class FRCNN(nn.Module):
         # make pred prob and bbox(post process)
         pred_cls = (torch.softmax(pred_fast_rcnn_cls, dim=-1))      # batch 없애는 부분
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(-1, self.num_classes, 4)  # ex) [184, 21, 4]
+        # un-normalization
         pred_fast_rcnn_reg = pred_fast_rcnn_reg * torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(torch.get_device(pred_fast_rcnn_reg))
         rois = rois.reshape(-1, 1, 4).expand_as(pred_fast_rcnn_reg)
         pred_bbox = decode(pred_fast_rcnn_reg.reshape(-1, 4), xy_to_cxcy(rois.reshape(-1, 4)))
@@ -391,6 +392,7 @@ def normal_init(m, mean, stddev):
 
 
 if __name__ == '__main__':
-    model = FRCNN()
-    print(model.extractor)
-    print(model.classifier)
+    img = torch.randn([1, 3, 800, 800])
+    model = FRCNN(num_classes=91)
+    print(model.predict(img, opts=None).shape)
+    # print(model.classifier)
