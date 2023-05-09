@@ -128,6 +128,7 @@ class FastRcnnTargetMaker(nn.Module):
         # remove the list for batch
         bbox = bbox[0]
         label = label[0]
+        device = bbox.get_device()
 
         # 무조건 나오는 roi를 만들기 위해서 와 bbox를 concat 한다.
         rois = torch.cat([rois, bbox], dim=0)
@@ -142,12 +143,12 @@ class FastRcnnTargetMaker(nn.Module):
         n_pos = int(min((IoU_max >= 0.5).sum(), 32))
 
         # random select pos and neg indices
-        pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
+        pos_index = torch.arange(IoU_max.size(0), device=device)[IoU_max >= 0.5]
         perm = torch.randperm(pos_index.size(0))
         pos_index = pos_index[perm[:n_pos]]
         n_neg = 128 - n_pos
 
-        neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
+        neg_index = torch.arange(IoU_max.size(0), device=device)[(IoU_max < 0.5) & (IoU_max >= 0.0)]
         perm = torch.randperm(neg_index.size(0))
         neg_index = neg_index[perm[:n_neg]]
 
@@ -188,6 +189,7 @@ class RPNTargetMaker(nn.Module):
 
         # 2. iou 따라 label 만들기
         # if label is 1 (positive), 0 (negative), -1 (ignore)
+        device = bbox.get_device()
         label = -1 * torch.ones(num_anchors, dtype=torch.float32, device=bbox.get_device())
 
         iou = find_jaccard_overlap(anchor, bbox)  # [num anchors, num objects]
@@ -224,14 +226,14 @@ class RPNTargetMaker(nn.Module):
 
         if n_pos > 128:
 
-            pos_indices = torch.arange(label.size(0))[label == 1]
+            pos_indices = torch.arange(label.size(0), device=device)[label == 1]
             perm = torch.randperm(pos_indices.size(0))
             label[pos_indices[perm[128:]]] = -1  # convert pos label to ignore label
 
         if n_neg > 256 - n_pos:
             if n_pos > 128:
                 n_pos = 128
-            neg_indices = torch.arange(label.size(0))[label == 0]
+            neg_indices = torch.arange(label.size(0), device=device)[label == 0]
             perm = torch.randperm(neg_indices.size(0))
             label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
 
@@ -245,7 +247,7 @@ class RPNTargetMaker(nn.Module):
 
         # 4. pad label and bbox for ignore label
         pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=bbox.get_device())
-        keep_indices = torch.arange(len(anchor_keep))[anchor_keep]
+        keep_indices = torch.arange(len(anchor_keep), device=device)[anchor_keep]
         pad_label[keep_indices] = label
         rpn_tg_cls = pad_label.type(torch.long)
 
@@ -392,7 +394,23 @@ def normal_init(m, mean, stddev):
 
 
 if __name__ == '__main__':
-    img = torch.randn([1, 3, 800, 800])
-    model = FRCNN(num_classes=91)
-    print(model.predict(img, opts=None).shape)
+
+
+    boxes_tensor = [torch.FloatTensor([[79.8867, 286.8000, 329.7450, 444.0000],
+                                       [11.8980, 13.2000, 596.6006, 596.4000]])]
+    boxes_tensor_scale_1 = [(box_tensor/800).cuda() for box_tensor in boxes_tensor]
+    label_tensor = [torch.Tensor([11, 14])]
+    label_tensor = [label.cuda() for label in label_tensor]
+    bbox = boxes_tensor_scale_1
+    label = label_tensor
+
+    img = torch.randn([1, 3, 800, 800]).cuda()
+    model = FRCNN(num_classes=91).cuda()
+    outputs = model(img, bbox, label)
+
+    for output in outputs:
+        for out in output:
+            print(out.size())
+
+
     # print(model.classifier)

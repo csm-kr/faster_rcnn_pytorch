@@ -1,15 +1,15 @@
 ## name
-name = faster_rcnn_coco
+name = faster_rcnn_coco_resnet50_fpn
 
 ## visdom
 visdom_port = 8097
 
 ## data
-data_root = /home/cvmlserver7/Sungmin/data/coco
+data_root = D:\data\coco
 data_type = coco
 
 ## training
 ## testing
 ## demo
 ## distributed
-gpu_ids = [0, 1, 2, 3]
+gpu_ids = [0]

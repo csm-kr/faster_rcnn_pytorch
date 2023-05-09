@@ -27,14 +27,14 @@ def build_dataloader(opts):
                 T.RandomResize(scales, max_size=1333),
             ]),
         ),
-        T.Resize(size),
+        # T.Resize(size),
         normalize
     ])
 
     transform_test = T.Compose([
         T.RandomResize([800], max_size=1333),
         # FIXME add resize for fixed size image
-        T.Resize(size),
+        # T.Resize(size),
         normalize
     ])
 

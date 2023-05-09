@@ -1,21 +1,23 @@
-import cv2
-import numpy
 import torch
 import numpy as np
 import torch.nn as nn
-from torchvision.models import vgg16
-from torchvision.ops import nms
-import torchvision
-from anchor import FRCNNAnchorMaker
 from utils.util import xy_to_cxcy, cxcy_to_xy, encode, decode, find_jaccard_overlap
-from torchvision.ops import RoIPool
+
+# torchvision
+import torchvision
 from torchvision.models.detection.image_list import ImageList
+from torchvision.ops import nms
+from torchvision.ops import MultiScaleRoIAlign
+from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
+from torchvision.models import ResNet50_Weights
+
 
 
 class RegionProposalNetwork(nn.Module):
     def __init__(self):
         super().__init__()
 
+        self.min_size = 10
         self.rpn_head = RPNHead()
         self.anchor_generator = torchvision.models.detection.rpn.\
             AnchorGenerator(sizes=((32,), (64,), (128,), (256,), (512,)),
@@ -25,7 +27,6 @@ class RegionProposalNetwork(nn.Module):
 
         cls = []
         reg = []
-        anchor = []
 
         features = list(features.values())
         for feature in features:
@@ -37,26 +38,27 @@ class RegionProposalNetwork(nn.Module):
 
         cls = pred_rpn_cls = torch.cat(cls, dim=1).flatten(0, -2)
         reg = pred_rpn_reg = torch.cat(reg, dim=1).reshape(-1, 4)
+
+        device = cls.get_device()
         # for using anchor generator
         h, w = x.shape[2:]
         anchor = self.anchor_generator(ImageList(x, [(w, h)]), features)[0]
-        anchor /= torch.FloatTensor([w, h, w, h])
+        anchor /= torch.FloatTensor([w, h, w, h]).to(device)
 
         # 0. make foreground_softmax_pred_rpn_cls
         cls = torch.softmax(cls, dim=-1)[..., 1]  # [16650]
 
         # pred reg, pred cls로 nms 해서 2000 / 300 개 고르는 곳
         # 1. set nms top k
-        pre_nms_top_k = 2000
+        pre_nms_top_k = 4000
         post_num_top_k = 1000
         if mode == 'test':
             pre_nms_top_k = 2000
             post_num_top_k = 1000
 
         # 2. make pred reg to bbox coord using tensor anchor
-        anchor_tensor = anchor
         roi_tensor = decode(reg,
-                            xy_to_cxcy(anchor_tensor.to(reg.get_device()))
+                            xy_to_cxcy(anchor)
                             )
         roi_tensor = cxcy_to_xy(roi_tensor).clamp(0, 1)
 
@@ -119,31 +121,32 @@ class FRCNNHead(nn.Module):
                  ):
         super().__init__()
         self.num_classes = num_classes
-        self.cls_head = nn.Linear(4096, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
-        self.reg_head = nn.Linear(4096, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
-        self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
+        self.cls_head = nn.Linear(1024, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
+        self.reg_head = nn.Linear(1024, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
+        # self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
+        self.roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=7, sampling_ratio=2)
         self.classifier = classifier
 
         # initialization
         normal_init(self.cls_head, 0, 0.01)
         normal_init(self.reg_head, 0, 0.001)
 
-    def forward(self, features, roi):
+    def forward(self, features, roi, img_shape):
         # ** roi 가 0 ~ 1 사이의 값으로 들어온다. --> scale roi **
-        device = features.get_device()
-        f_height, f_width = features.size()[2:]
-        scale_from_roi_to_feature = torch.FloatTensor([f_width, f_height, f_width, f_height]).to(device)
+        device = roi.get_device()
+        h, w = img_shape  # torch.Size([800, 800])
+        scale_from_roi_to_feature = torch.FloatTensor([w, h, w, h]).to(device)
         sclaed_roi = roi * scale_from_roi_to_feature
-        scaled_roi_list = [sclaed_roi]  # for make it input of roi pool
+        scaled_roi_list = [sclaed_roi]  # for make it input of roi pool - list tensor [[512,4]]
 
         # ** roi pool **
-        pool = self.roi_pool(features, scaled_roi_list)  # [128, 512, 7, 7]
-        x = pool.view(pool.size(0), -1)  # 128, 512 * 7 * 7
+        pool = self.roi_pool(features, scaled_roi_list, [(w, h)])  # [512, 256, 7, 7]
+        x = pool.view(pool.size(0), -1)  # 512, 12544
 
         # ** fast rcnn forward head ** #
-        x = self.classifier(x)  # 1, 128, 4096
-        pred_fast_rcnn_cls = self.cls_head(x)  # 1, 128, 21
-        pred_fast_rcnn_reg = self.reg_head(x)  # 1, 128, 21 * 4
+        x = self.classifier(x)  # 512, 1024
+        pred_fast_rcnn_cls = self.cls_head(x)  # 512, 91
+        pred_fast_rcnn_reg = self.reg_head(x)  # 512, 91 * 4
         return pred_fast_rcnn_cls, pred_fast_rcnn_reg
 
 
@@ -167,21 +170,27 @@ class FRCNNTargetMaker(nn.Module):
         fast_rcnn_tg_cls = label[IoU_argmax] + 1
 
         # n_pos = 32 or IoU 0.5 이상
-        n_pos = int(min((IoU_max >= 0.5).sum(), 64))
+        n_pos = int(min((IoU_max >= 0.5).sum(), 128))
 
         # random select pos and neg indices
-        pos_index = torch.arange(IoU_max.size(0))[IoU_max >= 0.5]
+        device = bbox.get_device()
+        pos_index = torch.arange(IoU_max.size(0), device=device)[IoU_max >= 0.5]
         perm = torch.randperm(pos_index.size(0))
         pos_index = pos_index[perm[:n_pos]]
-        n_neg = 256 - n_pos
+        n_neg = 512 - n_pos
 
-        neg_index = torch.arange(IoU_max.size(0))[(IoU_max < 0.5) & (IoU_max >= 0.0)]
+        neg_index = torch.arange(IoU_max.size(0), device=device)[(IoU_max < 0.5) & (IoU_max >= 0.0)]
         perm = torch.randperm(neg_index.size(0))
         neg_index = neg_index[perm[:n_neg]]
 
-        assert n_neg + n_pos == 256
+        assert n_neg + n_pos == 512
+
+        print("pos neg : ", n_pos, n_neg)
 
         keep_index = torch.cat([pos_index, neg_index], dim=-1)
+
+        if len(keep_index) != 512:
+            print(keep_index.shape)
 
         # make CLS target
         fast_rcnn_tg_cls = fast_rcnn_tg_cls[keep_index]
@@ -216,6 +225,7 @@ class RPNTargetMaker(nn.Module):
 
         # 2. iou 따라 label 만들기
         # if label is 1 (positive), 0 (negative), -1 (ignore)
+        device = bbox.get_device()
         label = -1 * torch.ones(num_anchors, dtype=torch.float32, device=bbox.get_device())
 
         iou = find_jaccard_overlap(anchor, bbox)  # [num anchors, num objects]
@@ -259,7 +269,7 @@ class RPNTargetMaker(nn.Module):
         if n_neg > 256 - n_pos:
             if n_pos > 128:
                 n_pos = 128
-            neg_indices = torch.arange(label.size(0))[label == 0]
+            neg_indices = torch.arange(label.size(0), device=device)[label == 0]
             perm = torch.randperm(neg_indices.size(0))
             label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
 
@@ -273,7 +283,7 @@ class RPNTargetMaker(nn.Module):
 
         # 4. pad label and bbox for ignore label
         pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=bbox.get_device())
-        keep_indices = torch.arange(len(anchor_keep))[anchor_keep]
+        keep_indices = torch.arange(len(anchor_keep), device=device)[anchor_keep]
         pad_label[keep_indices] = label
         rpn_tg_cls = pad_label.type(torch.long)
 
@@ -293,9 +303,9 @@ class FRCNN(nn.Module):
 
         # backbone
         self.backbone = resnet_fpn_backbone('resnet50', weights=ResNet50_Weights.IMAGENET1K_V1, trainable_layers=3)
-        self.classifier = nn.Sequential(nn.Linear(in_features=25088, out_features=4096),
+        self.classifier = nn.Sequential(nn.Linear(in_features=12544, out_features=1024),
                                         nn.ReLU(inplace=True),
-                                        nn.Linear(in_features=4096, out_features=4096),
+                                        nn.Linear(in_features=1024, out_features=1024),
                                         nn.ReLU(inplace=True))
 
         # region proposal network
@@ -318,20 +328,25 @@ class FRCNN(nn.Module):
 
         # 2. forward rpn
         pred_rpn_cls, pred_rpn_reg, rois, anchor = self.rpn(x, features, 'train')
+        print("rois", rois.shape)
 
         # 3. make target for rpn
         target_rpn_cls, target_rpn_reg = self.rpn_target_maker(bbox=bbox,
                                                                anchor=anchor)
 
         # 4. make target for fast rcnn
-        target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.fast_rcnn_target_maker(bbox=bbox,
-                                                                                              label=label,
-                                                                                              rois=rois)
-
+        target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.frcnn_target_maker(bbox=bbox,
+                                                                                          label=label,
+                                                                                          rois=rois)
+        print(sample_rois.shape)
         # 5. forward fast rcnn head
-        pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.fast_rcnn_head(features, sample_rois)
-        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(128, -1, 4)
-        pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128).long(), target_fast_rcnn_cls.long()]
+        pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.frcnn_head(features, sample_rois, x.shape[2:])
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(512, -1, 4)
+        pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 512).long(), target_fast_rcnn_cls.long()]
+
+        pred_rpn_cls = pred_rpn_cls.unsqueeze(0)
+        pred_rpn_reg = pred_rpn_reg.unsqueeze(0)
+
 
         return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
                (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg)
@@ -402,13 +417,30 @@ from torchvision.models import resnet
 # model = resnet50(weights=ResNet50_Weights.ImageNet1K_V1)
 
 if __name__ == '__main__':
-    from torch import nn, Tensor
-    from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
-    from torchvision.models import ResNet50_Weights
 
-    backbone = resnet_fpn_backbone('resnet50', weights=ResNet50_Weights.IMAGENET1K_V1, trainable_layers=3)
-    img = torch.randn([1, 3, 800, 800])
+    boxes_tensor = [torch.FloatTensor([[79.8867, 286.8000, 329.7450, 444.0000],
+                                       [11.8980, 13.2000, 596.6006, 596.4000]])]
+    boxes_tensor_scale_1 = [(box_tensor/800).cuda() for box_tensor in boxes_tensor]
+    label_tensor = [torch.Tensor([11, 14])]
+    label_tensor = [label.cuda() for label in label_tensor]
+    bbox = boxes_tensor_scale_1
+    label = label_tensor
 
-    model = FRCNN(num_classes=91)
-    print(model.predict(img, opts=None).shape)
-    # print(model.classifier)
+    img = torch.randn([1, 3, 800, 800]).cuda()
+    model = FRCNN(num_classes=91).cuda()
+    outputs = model(img, bbox, label)
+
+    for output in outputs:
+        for out in output:
+            print(out.size())
+
+    # from torch import nn, Tensor
+    # from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
+    # from torchvision.models import ResNet50_Weights
+    #
+    # backbone = resnet_fpn_backbone('resnet50', weights=ResNet50_Weights.IMAGENET1K_V1, trainable_layers=3)
+    # img = torch.randn([1, 3, 800, 800])
+    #
+    # model = FRCNN(num_classes=91)
+    # print(model.predict(img, opts=None).shape)
+    # # print(model.classifier)
