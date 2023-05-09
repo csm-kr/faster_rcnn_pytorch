@@ -185,12 +185,12 @@ class FRCNNTargetMaker(nn.Module):
 
         assert n_neg + n_pos == 512
 
-        print("pos neg : ", n_pos, n_neg)
+        # print("pos neg : ", n_pos, n_neg)
 
         keep_index = torch.cat([pos_index, neg_index], dim=-1)
 
-        if len(keep_index) != 512:
-            print(keep_index.shape)
+        # if len(keep_index) != 512:
+        #     print(keep_index.shape)
 
         # make CLS target
         fast_rcnn_tg_cls = fast_rcnn_tg_cls[keep_index]
@@ -328,7 +328,7 @@ class FRCNN(nn.Module):
 
         # 2. forward rpn
         pred_rpn_cls, pred_rpn_reg, rois, anchor = self.rpn(x, features, 'train')
-        print("rois", rois.shape)
+        # print("rois", rois.shape)
 
         # 3. make target for rpn
         target_rpn_cls, target_rpn_reg = self.rpn_target_maker(bbox=bbox,
@@ -338,7 +338,7 @@ class FRCNN(nn.Module):
         target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.frcnn_target_maker(bbox=bbox,
                                                                                           label=label,
                                                                                           rois=rois)
-        print(sample_rois.shape)
+        # print(sample_rois.shape)
         # 5. forward fast rcnn head
         pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.frcnn_head(features, sample_rois, x.shape[2:])
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(512, -1, 4)

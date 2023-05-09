@@ -10,7 +10,7 @@ from config import get_args_parser
 from datasets.build import build_dataloader
 from models.build import build_model
 from losses.build import build_loss
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
 
 # train and test
 from train import train_one_epoch
@@ -38,8 +38,8 @@ def main_worker(rank, opts):
     device = torch.device('cuda:{}'.format(int(opts.gpu_ids[opts.rank])))
 
     # 3. visdom
-    # vis = visdom.Visdom(port=opts.visdom_port)
-    vis = None
+    vis = visdom.Visdom(port=opts.visdom_port)
+    # vis = None
 
     # 4. data(set/loader)
     train_loader, test_loader = build_dataloader(opts)
@@ -58,7 +58,8 @@ def main_worker(rank, opts):
                                 weight_decay=opts.weight_decay)
 
     # 8. scheduler
-    scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=0.00005)
+    # scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=opts.epoch, eta_min=0.00005)
+    scheduler = MultiStepLR(optimizer=optimizer, milestones=[16, 22])
 
     # 9. logger
     xl_log_saver = None
@@ -96,6 +97,7 @@ def main_worker(rank, opts):
                       xl_log_saver=xl_log_saver,
                       result_best=result_best,
                       is_load=False)
+
         scheduler.step()
 
 

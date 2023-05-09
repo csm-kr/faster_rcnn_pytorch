@@ -1,5 +1,5 @@
 ## name
-name = faster_rcnn_coco
+name = faster_rcnn_coco_resnet50fpn
 
 ## visdom
 visdom_port = 8097
@@ -9,6 +9,9 @@ data_root = /home/cvmlserver7/Sungmin/data/coco
 data_type = coco
 
 ## training
+batch_size = 4
+epoch = 26
+
 ## testing
 ## demo
 ## distributed
