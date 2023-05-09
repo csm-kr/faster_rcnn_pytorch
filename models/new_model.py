@@ -262,7 +262,7 @@ class RPNTargetMaker(nn.Module):
 
         if n_pos > 128:
 
-            pos_indices = torch.arange(label.size(0))[label == 1]
+            pos_indices = torch.arange(label.size(0), device=device)[label == 1]
             perm = torch.randperm(pos_indices.size(0))
             label[pos_indices[perm[128:]]] = -1  # convert pos label to ignore label
 

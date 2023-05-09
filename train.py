@@ -34,7 +34,7 @@ def train_one_epoch(opts, epoch, device, vis, train_loader, model, criterion, op
             lr = param_group['lr']
 
         # for each steps
-        if idx % opts.vis_step == 0 or idx == len(train_loader) - 1 and opts.rank == 0:
+        if (idx % opts.vis_step == 0 or idx == len(train_loader) - 1) and opts.rank == 0:
             print('Epoch: [{0}]\t'
                   'Step: [{1}/{2}]\t'
                   'Loss: {loss:.4f}\t'
