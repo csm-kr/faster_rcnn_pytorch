@@ -9,10 +9,10 @@ data_root = /home/cvmlserver7/Sungmin/data/coco
 data_type = coco
 
 ## training
-batch_size = 1
+batch_size = 4
 epoch = 26
 
 ## testing
 ## demo
 ## distributed
-gpu_ids = [0]
+gpu_ids = [0, 1, 2, 3]

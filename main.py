@@ -109,7 +109,7 @@ if __name__ == '__main__':
         opts.distributed = True
 
     opts.world_size = len(opts.gpu_ids)
-    opts.num_workers = len(opts.gpu_ids) * 4
+    opts.num_workers = len(opts.gpu_ids) * 2
 
     if opts.distributed:
         mp.spawn(main_worker,
