@@ -75,7 +75,7 @@ class RegionProposalNetwork(nn.Module):
         if len(sorted_scores_indices) < pre_nms_top_k:
             pre_nms_top_k = len(sorted_scores_indices)
         roi_tensor = roi_tensor[sorted_scores_indices[:pre_nms_top_k]]  # [12000, 4]
-        sorted_scores = sorted_scores[:pre_nms_top_k]  # [12000]
+        sorted_scores = sorted_scores[:pre_nms_top_k]                   # [12000]
 
         # conduct pytorch nms
         keep_idx = nms(boxes=roi_tensor, scores=sorted_scores, iou_threshold=0.7)
@@ -123,7 +123,6 @@ class FRCNNHead(nn.Module):
         self.num_classes = num_classes
         self.cls_head = nn.Linear(1024, num_classes)  # roi 에 대하여 클래스를 만들어야 하므로
         self.reg_head = nn.Linear(1024, num_classes * 4)  # 각 클래스별로 coord 를 만들어야 하므로
-        # self.roi_pool = RoIPool(output_size=(roi_size, roi_size), spatial_scale=1.)
         self.roi_pool = MultiScaleRoIAlign(featmap_names=["0", "1", "2", "3"], output_size=7, sampling_ratio=2)
         self.classifier = classifier
 
@@ -186,7 +185,6 @@ class FRCNNTargetMaker(nn.Module):
         assert n_neg + n_pos == 512
 
         # print("pos neg : ", n_pos, n_neg)
-
         keep_index = torch.cat([pos_index, neg_index], dim=-1)
 
         # if len(keep_index) != 512:
@@ -204,7 +202,6 @@ class FRCNNTargetMaker(nn.Module):
         fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
 
         # normalization bbox
-        device = torch.get_device(fast_rcnn_tg_reg)
         mean = torch.FloatTensor([0., 0., 0., 0.]).to(device)
         std = torch.FloatTensor([0.1, 0.1, 0.2, 0.2]).to(device)
         fast_rcnn_tg_reg = (fast_rcnn_tg_reg - mean) / std
@@ -217,6 +214,7 @@ class RPNTargetMaker(nn.Module):
         super().__init__()
 
     def forward(self, bbox, anchor):
+
         # 1. anchor cross boundary 만 걸러내기
         bbox = bbox[0]  # remove the list for batch : shape [num_obj, 4]
         anchor_keep = ((anchor[:, 0] >= 0) & (anchor[:, 1] >= 0) & (anchor[:, 2] <= 1) & (anchor[:, 3] <= 1))
@@ -226,7 +224,7 @@ class RPNTargetMaker(nn.Module):
         # 2. iou 따라 label 만들기
         # if label is 1 (positive), 0 (negative), -1 (ignore)
         device = bbox.get_device()
-        label = -1 * torch.ones(num_anchors, dtype=torch.float32, device=bbox.get_device())
+        label = -1 * torch.ones(num_anchors, dtype=torch.float32, device=device)
 
         iou = find_jaccard_overlap(anchor, bbox)  # [num anchors, num objects]
         IoU_max, IoU_argmax = iou.max(dim=1)
@@ -282,12 +280,12 @@ class RPNTargetMaker(nn.Module):
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
 
         # 4. pad label and bbox for ignore label
-        pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=bbox.get_device())
+        pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=device)
         keep_indices = torch.arange(len(anchor_keep), device=device)[anchor_keep]
         pad_label[keep_indices] = label
         rpn_tg_cls = pad_label.type(torch.long)
 
-        pad_bbox = torch.zeros([len(anchor_keep), 4], dtype=torch.float32, device=bbox.get_device())
+        pad_bbox = torch.zeros([len(anchor_keep), 4], dtype=torch.float32, device=device)
         pad_bbox[keep_indices] = tg_cxywh
         rpn_tg_reg = pad_bbox
 
@@ -347,7 +345,6 @@ class FRCNN(nn.Module):
         pred_rpn_cls = pred_rpn_cls.unsqueeze(0)
         pred_rpn_reg = pred_rpn_reg.unsqueeze(0)
 
-
         return (pred_rpn_cls, pred_rpn_reg, pred_fast_rcnn_cls, pred_fast_rcnn_reg), \
                (target_rpn_cls, target_rpn_reg, target_fast_rcnn_cls, target_fast_rcnn_reg)
 
@@ -360,7 +357,7 @@ class FRCNN(nn.Module):
         pred_rpn_cls, pred_rpn_reg, rois, anchor = self.rpn(x, features, 'test')
 
         # 5. forward fast_rcnn_head
-        pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.fast_rcnn_head(features, rois)
+        pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.frcnn_head(features, rois, x.shape[2:])
 
         # make pred prob and bbox(post process)
         pred_cls = (torch.softmax(pred_fast_rcnn_cls, dim=-1))      # batch 없애는 부분
@@ -426,13 +423,29 @@ if __name__ == '__main__':
     bbox = boxes_tensor_scale_1
     label = label_tensor
 
+    # train
     img = torch.randn([1, 3, 800, 800]).cuda()
     model = FRCNN(num_classes=91).cuda()
     outputs = model(img, bbox, label)
 
-    for output in outputs:
-        for out in output:
-            print(out.size())
+    # test
+    with torch.no_grad():
+        import argparse
+        img = torch.randn([1, 3, 800, 800]).cuda()
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--thres', type=float, default=0.7)
+        opts = parser.parse_args()
+        model = FRCNN(num_classes=91).cuda()
+        outputs = model.predict(img, opts)
+
+        bbox, label, score = outputs
+        print(bbox.shape)
+        print(label)
+        print(score)
+
+    # for output in outputs:
+    #     for out in output:
+    #         print(out.size())
 
     # from torch import nn, Tensor
     # from torchvision.models.detection.backbone_utils import resnet_fpn_backbone

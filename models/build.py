@@ -7,6 +7,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 def build_model(opts):
     if opts.distributed:
         model = FRCNN(num_classes=opts.num_classes)
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = model.cuda(int(opts.gpu_ids[opts.rank]))
         model = DDP(module=model,
                     device_ids=[int(opts.gpu_ids[opts.rank])],

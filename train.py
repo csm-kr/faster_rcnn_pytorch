@@ -70,9 +70,9 @@ def train_one_epoch(opts, epoch, device, vis, train_loader, model, criterion, op
 
         # not saving all epochs
 
-        # checkpoint = {'epoch': epoch,
-        #               'model_state_dict': model.state_dict(),
-        #               'optimizer_state_dict': optimizer.state_dict(),
-        #               'scheduler_state_dict': scheduler.state_dict()}
-        #
-        # torch.save(checkpoint, os.path.join(save_path, opts.name + '.{}.pth.tar'.format(epoch)))
+        checkpoint = {'epoch': epoch,
+                      'model_state_dict': model.state_dict(),
+                      'optimizer_state_dict': optimizer.state_dict(),
+                      'scheduler_state_dict': scheduler.state_dict()}
+
+        torch.save(checkpoint, os.path.join(save_path, opts.name + '.{}.pth.tar'.format(epoch)))
