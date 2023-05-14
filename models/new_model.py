@@ -209,6 +209,16 @@ class FRCNNTargetMaker(nn.Module):
         return fast_rcnn_tg_cls, fast_rcnn_tg_reg, sample_rois
 
 
+def assign_rpn_target(anchors, targets):
+    labels = []
+    matched_gt_boxes = []
+
+    # batch에 따른 target을 위해서
+    for anchors_per_image, targets_per_image in zip(anchors, targets):
+        gt_boxes = targets_per_image["boxes"]
+
+
+
 class RPNTargetMaker(nn.Module):
     def __init__(self):
         super().__init__()

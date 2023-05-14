@@ -198,6 +198,7 @@ class RPNTargetMaker(nn.Module):
         # 2-1. set negative label
         label[IoU_max < 0.3] = 0
 
+        # utils label 407 참조
         # 2-2. set positive label that have highest iou.
         _, IoU_argmax_per_object = iou.max(dim=0)
 
