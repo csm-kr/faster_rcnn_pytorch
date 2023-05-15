@@ -215,7 +215,40 @@ def assign_rpn_target(anchors, targets):
 
     # batch에 따른 target을 위해서
     for anchors_per_image, targets_per_image in zip(anchors, targets):
+        # 1. get gt boxes
         gt_boxes = targets_per_image["boxes"]
+
+        # 2. get iou between gt_boxes and anchors_p_i
+        iou = find_jaccard_overlap(gt_boxes, anchors_per_image)  # num_boxes(objects), num_anchors
+        iou_valmax, iou_argmax = iou.max(dim=0)
+        all_matches = iou_argmax.clone()
+
+        # Assign candidate matches with low quality to negative (unassigned) values
+        below_low_threshold = iou_valmax < 0.3
+        between_thresholds = (iou_valmax >= 0.3) & (iou_valmax < 0.7)
+        iou_argmax[below_low_threshold] = -1
+        iou_argmax[between_thresholds] = -2
+
+        # For each gt, find the prediction with which it has the highest quality
+        highest_iou_vals_per_gt, _ = iou.max(dim=1)
+        # Find the highest quality match available, even if it is low, including ties
+        gt_pred_pairs_of_highest_quality = torch.where(iou == highest_iou_vals_per_gt[:, None])
+        # Example gt_pred_pairs_of_highest_quality:
+        #   tensor([[    0, 39796],
+        #           [    1, 32055],
+        #           [    1, 32070],
+        #           [    2, 39190],
+        #           [    2, 40255],
+        #           [    3, 40390],
+        #           [    3, 41455],
+        #           [    4, 45470],
+        #           [    5, 45325],
+        #           [    5, 46390]])
+        # Each row is a (gt index, prediction index)
+        # Note how gt items 1, 2, 3, and 5 each have two ties
+
+        pred_inds_to_update = gt_pred_pairs_of_highest_quality[1]
+        iou_argmax[pred_inds_to_update] = all_matches[pred_inds_to_update]
 
 
 
