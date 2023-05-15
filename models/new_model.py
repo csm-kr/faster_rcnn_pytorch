@@ -209,47 +209,94 @@ class FRCNNTargetMaker(nn.Module):
         return fast_rcnn_tg_cls, fast_rcnn_tg_reg, sample_rois
 
 
-def assign_rpn_target(anchors, targets):
-    labels = []
-    matched_gt_boxes = []
-
-    # batch에 따른 target을 위해서
-    for anchors_per_image, targets_per_image in zip(anchors, targets):
-        # 1. get gt boxes
-        gt_boxes = targets_per_image["boxes"]
-
-        # 2. get iou between gt_boxes and anchors_p_i
-        iou = find_jaccard_overlap(gt_boxes, anchors_per_image)  # num_boxes(objects), num_anchors
-        iou_valmax, iou_argmax = iou.max(dim=0)
-        all_matches = iou_argmax.clone()
-
-        # Assign candidate matches with low quality to negative (unassigned) values
-        below_low_threshold = iou_valmax < 0.3
-        between_thresholds = (iou_valmax >= 0.3) & (iou_valmax < 0.7)
-        iou_argmax[below_low_threshold] = -1
-        iou_argmax[between_thresholds] = -2
-
-        # For each gt, find the prediction with which it has the highest quality
-        highest_iou_vals_per_gt, _ = iou.max(dim=1)
-        # Find the highest quality match available, even if it is low, including ties
-        gt_pred_pairs_of_highest_quality = torch.where(iou == highest_iou_vals_per_gt[:, None])
-        # Example gt_pred_pairs_of_highest_quality:
-        #   tensor([[    0, 39796],
-        #           [    1, 32055],
-        #           [    1, 32070],
-        #           [    2, 39190],
-        #           [    2, 40255],
-        #           [    3, 40390],
-        #           [    3, 41455],
-        #           [    4, 45470],
-        #           [    5, 45325],
-        #           [    5, 46390]])
-        # Each row is a (gt index, prediction index)
-        # Note how gt items 1, 2, 3, and 5 each have two ties
-
-        pred_inds_to_update = gt_pred_pairs_of_highest_quality[1]
-        iou_argmax[pred_inds_to_update] = all_matches[pred_inds_to_update]
-
+# def assign_rpn_target(anchors, targets):
+#     labels = []
+#     matched_gt_boxes = []
+#
+#     # batch에 따른 target을 위해서
+#     for anchors_per_image, targets_per_image in zip(anchors, targets):
+#         # 1. get gt boxes
+#         gt_boxes = targets_per_image["boxes"]
+#
+#         # 2. get iou between gt_boxes and anchors_p_i
+#         iou = find_jaccard_overlap(gt_boxes, anchors_per_image)  # num_boxes(objects), num_anchors
+#         iou_valmax, iou_argmax = iou.max(dim=0)
+#         all_matches = iou_argmax.clone()
+#
+#         # Assign candidate matches with low quality to negative (unassigned) values
+#         below_low_threshold = iou_valmax < 0.3
+#         between_thresholds = (iou_valmax >= 0.3) & (iou_valmax < 0.7)
+#         iou_argmax[below_low_threshold] = -1
+#         iou_argmax[between_thresholds] = -2
+#
+#         # For each gt, find the prediction with which it has the highest quality
+#         highest_iou_vals_per_gt, _ = iou.max(dim=1)
+#         # Find the highest quality match available, even if it is low, including ties
+#
+#         # 이 방식
+#         gt_pred_pairs_of_highest_quality = torch.where(iou == highest_iou_vals_per_gt[:, None])
+#         # Example gt_pred_pairs_of_highest_quality:
+#         #   tensor([[    0, 39796],
+#         #           [    1, 32055],
+#         #           [    1, 32070],
+#         #           [    2, 39190],
+#         #           [    2, 40255],
+#         #           [    3, 40390],
+#         #           [    3, 41455],
+#         #           [    4, 45470],
+#         #           [    5, 45325],
+#         #           [    5, 46390]])
+#         # Each row is a (gt index, prediction index)
+#         # Note how gt items 1, 2, 3, and 5 each have two ties
+#
+#         pred_inds_to_update = gt_pred_pairs_of_highest_quality[1]
+#         iou_argmax[pred_inds_to_update] = all_matches[pred_inds_to_update]
+#
+#
+#         matched_idxs = iou_argmax
+#         matched_gt_boxes_per_image = gt_boxes[matched_idxs.clamp(min=0)]
+#
+#         labels_per_image = matched_idxs >= 0
+#         labels_per_image = labels_per_image.to(dtype=torch.float32)
+#
+#         # Background (negative examples)
+#         bg_indices = matched_idxs == -1
+#         labels_per_image[bg_indices] = 0.0
+#
+#         # discard indices that are between thresholds
+#         inds_to_discard = matched_idxs == -2
+#         labels_per_image[inds_to_discard] = -1.0
+#
+#
+#     pos_idx = []
+#     neg_idx = []
+#     for matched_idxs_per_image in matched_idxs:
+#         positive = torch.where(matched_idxs_per_image >= 1)[0]
+#         negative = torch.where(matched_idxs_per_image == 0)[0]
+#
+#         num_pos = int(256 * 0.5)
+#         # protect against not enough positive examples
+#         num_pos = min(positive.numel(), num_pos)
+#         num_neg = 256 - num_pos
+#         # protect against not enough negative examples
+#         num_neg = min(negative.numel(), num_neg)
+#
+#         # randomly select positive and negative examples
+#         perm1 = torch.randperm(positive.numel(), device=positive.device)[:num_pos]
+#         perm2 = torch.randperm(negative.numel(), device=negative.device)[:num_neg]
+#
+#         pos_idx_per_image = positive[perm1]
+#         neg_idx_per_image = negative[perm2]
+#
+#         # create binary mask from indices
+#         pos_idx_per_image_mask = torch.zeros_like(matched_idxs_per_image, dtype=torch.uint8)
+#         neg_idx_per_image_mask = torch.zeros_like(matched_idxs_per_image, dtype=torch.uint8)
+#
+#         pos_idx_per_image_mask[pos_idx_per_image] = 1
+#         neg_idx_per_image_mask[neg_idx_per_image] = 1
+#
+#         pos_idx.append(pos_idx_per_image_mask)
+#         neg_idx.append(neg_idx_per_image_mask)
 
 
 class RPNTargetMaker(nn.Module):
@@ -300,6 +347,8 @@ class RPNTargetMaker(nn.Module):
 
         # print(n_pos)
         # print(n_neg)
+
+        # num_pos = min(positive.numel(), num_pos)
 
         if n_pos > 128:
 
