@@ -21,10 +21,10 @@ def get_args_parser():
 
     # training
     parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--epoch', type=int, default=13)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument('--epoch', type=int, default=26)
+    parser.add_argument("--lr", type=float, default=2e-3)
     parser.add_argument('--warmup_epoch', type=int, default=1)
-    parser.add_argument('--weight_decay', type=float, default=5e-4)
+    parser.add_argument('--weight_decay', type=float, default=1e-4)
     parser.add_argument('--momentum', type=float, default=0.9)
     parser.add_argument('--start_epoch', type=int, default=0)
     parser.add_argument('--log_dir', type=str, default='./logs')

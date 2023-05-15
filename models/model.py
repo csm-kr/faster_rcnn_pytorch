@@ -12,7 +12,7 @@ from torchvision.ops import RoIPool
 class RegionProposal(nn.Module):
     def __init__(self):
         super().__init__()
-        self.min_size = 16
+        self.min_size = 1
 
     def forward(self, cls, reg, anchor, mode):
 
@@ -34,7 +34,7 @@ class RegionProposal(nn.Module):
                             )
         roi_tensor = cxcy_to_xy(roi_tensor).clamp(0, 1)
 
-        # 3. keep longer than minimum size
+        # 3. keep longer than minimum size - remove small boxes
         ws = roi_tensor[:, 2] - roi_tensor[:, 0]
         hs = roi_tensor[:, 3] - roi_tensor[:, 1]
         keep = (hs >= (self.min_size / 1000)) & (ws >= (self.min_size / 1000))
@@ -144,11 +144,13 @@ class FastRcnnTargetMaker(nn.Module):
 
         # random select pos and neg indices
         pos_index = torch.arange(IoU_max.size(0), device=device)[IoU_max >= 0.5]
+        print(pos_index.size())
         perm = torch.randperm(pos_index.size(0))
         pos_index = pos_index[perm[:n_pos]]
         n_neg = 128 - n_pos
 
         neg_index = torch.arange(IoU_max.size(0), device=device)[(IoU_max < 0.5) & (IoU_max >= 0.0)]
+        print(neg_index.size())
         perm = torch.randperm(neg_index.size(0))
         neg_index = neg_index[perm[:n_neg]]
 
@@ -200,48 +202,39 @@ class RPNTargetMaker(nn.Module):
 
         # utils label 407 참조
         # 2-2. set positive label that have highest iou.
-        _, IoU_argmax_per_object = iou.max(dim=0)
+        IoU_max_per_object, IoU_argmax_per_object = iou.max(dim=0)
 
-        # FIXME
+        # IoU_max_per_object
+
         # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분.   **
-        # IoU_argmax_per_object update (max 값 포함하는 index 찾기)
+        obj_max_idx = torch.where(iou == IoU_max_per_object[None, :])[0]
+        label[obj_max_idx] = 1
+        # label[IoU_argmax_per_object] = 1
 
-        # 검증
-        # print((iou == IoU_max_per_object).sum() == iou.size(1))
-        # print((iou == IoU_max_per_object).sum())
-        # print(iou.size(1))
-
-        # ** 2020/08/17 n_neg = 0 인 error -> 무시 **
-        # IoU_argmax_per_object = torch.nonzero(input=(iou == IoU_max_per_object))[:, 0]  # 2차원이라 앞의 column 가져오기
-        # FIXME
-
-        label[IoU_argmax_per_object] = 1
         # 2-3. set positive label
         label[IoU_max >= 0.7] = 1
+
         # 2-4 sample target
         n_pos = (label == 1).sum()
         n_neg = (label == 0).sum()
 
-        # print(n_pos)
-        # print(n_neg)
+        # 2-5 sample the positive and negative samples
+        rpn_batch_per_image = 256
+        positive_fraction = 0.5
 
-        if n_pos > 128:
+        # randomly shuffle
+        n_pos = min(n_pos, int(rpn_batch_per_image * positive_fraction))  # (146, 128) vs (36, 128)
+        pos_indices = torch.arange(label.size(0), device=device)[label == 1]
+        perm = torch.randperm(pos_indices.size(0))
+        label[pos_indices[perm[n_pos:]]] = -1  # convert pos label to ignore label
 
-            pos_indices = torch.arange(label.size(0), device=device)[label == 1]
-            perm = torch.randperm(pos_indices.size(0))
-            label[pos_indices[perm[128:]]] = -1  # convert pos label to ignore label
+        n_neg = min(n_neg, rpn_batch_per_image - n_pos)  # 5539 vs 256 - 7
+        neg_indices = torch.arange(label.size(0), device=device)[label == 0]
+        perm = torch.randperm(neg_indices.size(0))
+        label[neg_indices[perm[n_neg:]]] = -1  # convert neg label to ignore label
 
-        if n_neg > 256 - n_pos:
-            if n_pos > 128:
-                n_pos = 128
-            neg_indices = torch.arange(label.size(0), device=device)[label == 0]
-            perm = torch.randperm(neg_indices.size(0))
-            label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
-
-        # assert (label == 1).sum() + (label == 0).sum() > 200, \
-        #     'less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum())
-        if (label == 1).sum() + (label == 0).sum() < 200:
-            print('less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum()))
+        print("num positive :", n_pos)
+        print("num negative :", n_neg)
 
         # 3. bbox encoding
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
@@ -261,6 +254,7 @@ class RPNTargetMaker(nn.Module):
 
 
 class FRCNN(nn.Module):
+
     def __init__(self, num_classes):
         super().__init__()
 
@@ -322,8 +316,14 @@ class FRCNN(nn.Module):
                                                                                               label=label,
                                                                                               rois=rois)
 
+
+        print("sample_rois shape :", sample_rois.shape)
         # 7. forward fast rcnn head
         pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.fast_rcnn_head(features, sample_rois)
+
+        print("pred_fast_rcnn_cls shape :", pred_fast_rcnn_cls.shape)
+        print("pred_fast_rcnn_reg shape :", pred_fast_rcnn_reg.shape)
+
         pred_fast_rcnn_reg = pred_fast_rcnn_reg.reshape(128, -1, 4)
         pred_fast_rcnn_reg = pred_fast_rcnn_reg[torch.arange(0, 128).long(), target_fast_rcnn_cls.long()]
 
@@ -406,7 +406,7 @@ if __name__ == '__main__':
     label = label_tensor
 
     img = torch.randn([1, 3, 800, 800]).cuda()
-    model = FRCNN(num_classes=91).cuda()
+    model = FRCNN(num_classes=81).cuda()
     outputs = model(img, bbox, label)
 
     for output in outputs:

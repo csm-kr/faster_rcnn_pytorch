@@ -1,5 +1,5 @@
 ## name
-name = faster_rcnn_coco_resnet_50_fpn
+name = faster_rcnn_20230515
 
 ## visdom
 visdom_port = 8097
