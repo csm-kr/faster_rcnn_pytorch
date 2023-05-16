@@ -30,8 +30,7 @@ class RegionProposal(nn.Module):
         # 2. make pred reg to bbox coord using tensor anchor
         anchor_tensor = anchor
         roi_tensor = decode(reg,
-                            xy_to_cxcy(anchor_tensor.to(reg.get_device()))
-                            )
+                            xy_to_cxcy(anchor_tensor.to(reg.get_device())))
         roi_tensor = cxcy_to_xy(roi_tensor).clamp(0, 1)
 
         # 3. keep longer than minimum size - remove small boxes
@@ -48,11 +47,13 @@ class RegionProposal(nn.Module):
             pre_nms_top_k = len(sorted_scores_indices)
         roi_tensor = roi_tensor[sorted_scores_indices[:pre_nms_top_k]]  # [12000, 4]
         sorted_scores = sorted_scores[:pre_nms_top_k]  # [12000]
+        print("sorted_scores :", sorted_scores.shape)
 
         # conduct pytorch nms
         keep_idx = nms(boxes=roi_tensor, scores=sorted_scores, iou_threshold=0.7)
         keep_idx = keep_idx[:post_num_top_k]  # tensor([    0,     1,     2,  ..., 11960, 11982, 11997])
         roi_tensor = roi_tensor[keep_idx].detach()  # ** important : detach function makes normalization possible **
+        print("roi_tensor :", roi_tensor.shape)
 
         return roi_tensor
 
@@ -132,7 +133,7 @@ class FastRcnnTargetMaker(nn.Module):
 
         # 무조건 나오는 roi를 만들기 위해서 와 bbox를 concat 한다.
         rois = torch.cat([rois, bbox], dim=0)
-        # print(rois.size())
+        print("the number of sampled roi: ", rois.size())
         iou = find_jaccard_overlap(rois, bbox)  # [2000 + num_obj, num objects]
         IoU_max, IoU_argmax = iou.max(dim=1)
 
@@ -144,13 +145,13 @@ class FastRcnnTargetMaker(nn.Module):
 
         # random select pos and neg indices
         pos_index = torch.arange(IoU_max.size(0), device=device)[IoU_max >= 0.5]
-        print(pos_index.size())
+        # print(pos_index.size())
         perm = torch.randperm(pos_index.size(0))
         pos_index = pos_index[perm[:n_pos]]
         n_neg = 128 - n_pos
 
         neg_index = torch.arange(IoU_max.size(0), device=device)[(IoU_max < 0.5) & (IoU_max >= 0.0)]
-        print(neg_index.size())
+        # print(neg_index.size())
         perm = torch.randperm(neg_index.size(0))
         neg_index = neg_index[perm[:n_neg]]
 
@@ -207,9 +208,9 @@ class RPNTargetMaker(nn.Module):
         # IoU_max_per_object
 
         # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분.   **
-        obj_max_idx = torch.where(iou == IoU_max_per_object[None, :])[0]
-        label[obj_max_idx] = 1
-        # label[IoU_argmax_per_object] = 1
+        # obj_max_idx = torch.where(iou == IoU_max_per_object[None, :])[0]
+        # label[obj_max_idx] = 1
+        label[IoU_argmax_per_object] = 1
 
         # 2-3. set positive label
         label[IoU_max >= 0.7] = 1
@@ -219,22 +220,34 @@ class RPNTargetMaker(nn.Module):
         n_neg = (label == 0).sum()
 
         # 2-5 sample the positive and negative samples
+
+        # ------------------------------------------ old version ------------------------------------------
+        if n_pos > 128:
+
+            pos_indices = torch.arange(label.size(0), device=device)[label == 1]
+            perm = torch.randperm(pos_indices.size(0))
+            label[pos_indices[perm[128:]]] = -1  # convert pos label to ignore label
+
+        if n_neg > 256 - n_pos:
+            if n_pos > 128:
+                n_pos = 128
+            neg_indices = torch.arange(label.size(0), device=device)[label == 0]
+            perm = torch.randperm(neg_indices.size(0))
+            label[neg_indices[perm[(256 - n_pos):]]] = -1  # convert neg label to ignore label
+        # ------------------------------------------ new version ------------------------------------------
         rpn_batch_per_image = 256
         positive_fraction = 0.5
 
         # randomly shuffle
-        n_pos = min(n_pos, int(rpn_batch_per_image * positive_fraction))  # (146, 128) vs (36, 128)
-        pos_indices = torch.arange(label.size(0), device=device)[label == 1]
-        perm = torch.randperm(pos_indices.size(0))
-        label[pos_indices[perm[n_pos:]]] = -1  # convert pos label to ignore label
-
-        n_neg = min(n_neg, rpn_batch_per_image - n_pos)  # 5539 vs 256 - 7
-        neg_indices = torch.arange(label.size(0), device=device)[label == 0]
-        perm = torch.randperm(neg_indices.size(0))
-        label[neg_indices[perm[n_neg:]]] = -1  # convert neg label to ignore label
-
-        print("num positive :", n_pos)
-        print("num negative :", n_neg)
+        # n_pos = min(n_pos, int(rpn_batch_per_image * positive_fraction))  # (146, 128) vs (36, 128)
+        # pos_indices = torch.arange(label.size(0), device=device)[label == 1]
+        # perm = torch.randperm(pos_indices.size(0))
+        # label[pos_indices[perm[n_pos:]]] = -1  # convert pos label to ignore label
+        #
+        # n_neg = min(n_neg, rpn_batch_per_image - n_pos)  # 5539 vs 256 - 7
+        # neg_indices = torch.arange(label.size(0), device=device)[label == 0]
+        # perm = torch.randperm(neg_indices.size(0))
+        # label[neg_indices[perm[n_neg:]]] = -1  # convert neg label to ignore label
 
         # 3. bbox encoding
         tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
@@ -317,7 +330,7 @@ class FRCNN(nn.Module):
                                                                                               rois=rois)
 
 
-        print("sample_rois shape :", sample_rois.shape)
+        # print("sample_rois shape :", sample_rois.shape)
         # 7. forward fast rcnn head
         pred_fast_rcnn_cls, pred_fast_rcnn_reg = self.fast_rcnn_head(features, sample_rois)
 
