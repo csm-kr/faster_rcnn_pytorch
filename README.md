@@ -43,11 +43,12 @@ Please refer to https://arxiv.org/abs/1506.01497
 
 - COCO
 
-|methods     |  Traning    |   Testing  | Resolution |   mAP@[.5 .95]  |
-|------------|-------------|------------|------------| --------------- |
-|papers      |train        |  COCOval   | **         |   21.2          |
-|papers      |trainval     |  COCOval   | **         |   -             |
-|this repo   |COCOtrain2017|  minival   | **         |   20.7(-0.50%)  |
+| methods           |  Traning    |   Testing  | Resolution | mAP@[.5 .95] |
+|-------------------|-------------|------------|------------|-------------|
+| papers            |train        |  COCOval   | **         | 21.2        |
+| papers            |trainval     |  COCOval   | **         | -           |
+| this repo         |COCOtrain2017|  minival   | **         | 20.7(-0.5%) |
+| exp1 - more train |COCOtrain2017|  minival   | **         | 24.1(+2.9%) |
 
 ```
  Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.207
@@ -63,6 +64,35 @@ Please refer to https://arxiv.org/abs/1506.01497
  Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.354
  Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.510
 ```
+
+exp1 - more train with new lr and wd
+
+like torchvision environments, 
+```angular2html
+- batch size : 4 (using 4 gpu)
+- optimizer : SGD
+- epoch : 26 
+- initial learning rate 0.002
+- weight decay : 1e-4
+- momentum : 0.9
+- scheduler : MultiStepLR - [16, 22]
+```
+
+```angular2html
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.241
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.463
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.228
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.091
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.288
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.376
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.225
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.326
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.331
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.122
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.398
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.503
+```
+
 
 ** A way to resize frcnn is to make the image different size if the original image is different.
 

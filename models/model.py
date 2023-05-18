@@ -203,7 +203,7 @@ class RPNTargetMaker(nn.Module):
 
         # utils label 407 참조
         # 2-2. set positive label that have highest iou.
-        IoU_max_per_object, IoU_argmax_per_object = iou.max(dim=0)
+        IoU_max_per_object, IoU_argmax_per_object = iou.max(dim=0)  # 각 anchor 중에서 object 와 관련이 가장 큰 녀석을 고르기
 
         # IoU_max_per_object
 
