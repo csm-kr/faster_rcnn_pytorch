@@ -10,7 +10,7 @@ import torchvision.transforms as T
 import torchvision.transforms.functional as F
 
 from util.box_ops import box_xyxy_to_cxcywh
-from util.misc import interpolate
+# from util.misc import interpolate
 
 
 def crop(image, target, region):
@@ -143,6 +143,23 @@ def pad(image, target, padding):
     if "masks" in target:
         target['masks'] = torch.nn.functional.pad(target['masks'], (0, padding[0], 0, padding[1]))
     return padded_image, target
+
+
+class Resize(object):
+    def __init__(self, size=None, min_size=None, max_size=None):
+        if size is not None:
+            assert isinstance(size, (list, tuple))
+            self.size = size
+        elif min_size is not None:
+            self.size = min_size
+        else:
+            # if both are None or not None
+            assert False, 'Only one of the two can be entered(size must be tuple and min_size be scalar)'
+        self.max_size = max_size
+
+    def __call__(self, img, target=None):
+        size = self.size
+        return resize(img, target, size, self.max_size)
 
 
 class RandomCrop(object):
