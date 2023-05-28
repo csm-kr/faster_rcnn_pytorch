@@ -146,16 +146,13 @@ def pad(image, target, padding):
 
 
 class Resize(object):
-    def __init__(self, size=None, min_size=None, max_size=None):
-        if size is not None:
-            assert isinstance(size, (list, tuple))
+    def __init__(self, size, max_size=None):
+        if isinstance(size, (list, tuple)):
             self.size = size
-        elif min_size is not None:
-            self.size = min_size
+            self.max_size = None
         else:
-            # if both are None or not None
-            assert False, 'Only one of the two can be entered(size must be tuple and min_size be scalar)'
-        self.max_size = max_size
+            self.size = size
+            self.max_size = max_size
 
     def __call__(self, img, target=None):
         size = self.size

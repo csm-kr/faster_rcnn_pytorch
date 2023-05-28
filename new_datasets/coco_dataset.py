@@ -2,18 +2,26 @@ import os
 import math
 import torch
 import torchvision
-import transforms as T
+import numpy as np
+import matplotlib.pyplot as plt
+import new_datasets.transforms as T
 from torch.utils.data import DataLoader
+from matplotlib.patches import Rectangle
 from coco_utils import ConvertCocoPolysToMask
+from util.label_info import coco_color_array, coco_label_list
 
 
 class COCODatasetV1(torchvision.datasets.CocoDetection):
-    def __init__(self, img_folder, ann_file, transforms):
+    def __init__(self, img_folder, ann_file, transforms, visualization=False):
         super().__init__(img_folder, ann_file)
         # 117266
         self.ids = list(sorted(self.coco.imgToAnns.keys()))
         self._parses = ConvertCocoPolysToMask()
         self._transforms = transforms
+        self._visualization = visualization
+        if visualization:
+            self.coco_color = coco_color_array
+            self.coco_label = coco_label_list
 
     def __getitem__(self, idx):
         img, target = super().__getitem__(idx)
@@ -22,6 +30,8 @@ class COCODatasetV1(torchvision.datasets.CocoDetection):
         img, target = self._parses(img, target)
         if self._transforms is not None:
             img, target = self._transforms(img, target)
+        if self._visualization:
+            self.visualize(img, target)
         return img, target
 
     def collate_fn(self, batch):
@@ -54,6 +64,59 @@ class COCODatasetV1(torchvision.datasets.CocoDetection):
             img = images[i]
             batched_imgs[i, : img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
         return batched_imgs
+
+    def visualize(self, img, target):
+
+        # De-Normalize
+        if isinstance(self._transforms.transforms[-1], T.Normalize):
+            std = self._transforms.transforms[-1].std
+            mean = self._transforms.transforms[-1].mean
+
+            # numpy
+            img_np = np.array(img.permute(1, 2, 0), np.float32)  # C, W, H
+            img_np *= np.array(std)
+            img_np += np.array(mean)
+            img_np = np.clip(img_np, 0, 1)
+        else:
+            img_np = np.array(img.permute(1, 2, 0), np.float32)
+            img_np = np.clip(img_np, 0, 1)
+
+        # visualize img
+        plt.figure('input')
+        plt.imshow(img_np)
+
+        # visualize target
+        boxes = target['boxes']
+        labels = target['labels']
+        # plt.show()
+        for i in range(boxes.size(0)):
+            print(i)
+
+            x1 = boxes[i][0]
+            y1 = boxes[i][1]
+            x2 = boxes[i][2]
+            y2 = boxes[i][3]
+
+            print(boxes[i], ':', self.coco_label[labels[i]])
+
+            # labels
+            plt.text(x=x1 - 5,
+                     y=y1 - 5,
+                     s=str(self.coco_label[labels[i]]),
+                     bbox=dict(boxstyle='round4',
+                               facecolor=self.coco_color[labels[i]],
+                               alpha=0.9))
+
+            # boxes
+            plt.gca().add_patch(Rectangle(xy=(x1, y1),
+                                          width=x2 - x1,
+                                          height=y2 - y1,
+                                          linewidth=1,
+                                          edgecolor=self.coco_color[labels[i]],
+                                          facecolor='none'))
+
+        plt.show()
+        return
 
 
 if __name__ == '__main__':
