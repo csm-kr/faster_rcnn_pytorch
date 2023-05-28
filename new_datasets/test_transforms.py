@@ -57,6 +57,7 @@ import numpy as np
 
 if __name__ == '__main__':
     root = os.path.join(os.path.expanduser('~'), 'Desktop', 'data', 'coco')
+    # root = 'D:\data\coco'
     image_set = 'val'
     img_folder = os.path.join(root, f'{image_set}2017')
     ann_file = os.path.join(root, 'annotations', f'instances_{image_set}2017.json')
@@ -72,5 +73,5 @@ if __name__ == '__main__':
     for i, (img, target) in enumerate(dataset):
         print(img.shape)
         print(target)
-        # if i == 10:
-        #     break
+        if i == 10:
+            break

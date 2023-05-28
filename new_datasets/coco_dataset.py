@@ -19,7 +19,7 @@ class COCODatasetV1(torchvision.datasets.CocoDetection):
         self._parses = ConvertCocoPolysToMask()
         self._transforms = transforms
         self._visualization = visualization
-        if visualization:
+        if self._visualization:
             self.coco_color = coco_color_array
             self.coco_label = coco_label_list
 
@@ -88,16 +88,14 @@ class COCODatasetV1(torchvision.datasets.CocoDetection):
         # visualize target
         boxes = target['boxes']
         labels = target['labels']
-        # plt.show()
-        for i in range(boxes.size(0)):
-            print(i)
+        print('num objects : {}'.format(len(boxes)))
+
+        for i in range(len(boxes)):
 
             x1 = boxes[i][0]
             y1 = boxes[i][1]
             x2 = boxes[i][2]
             y2 = boxes[i][3]
-
-            print(boxes[i], ':', self.coco_label[labels[i]])
 
             # labels
             plt.text(x=x1 - 5,
