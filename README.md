@@ -186,3 +186,10 @@ If you found this implementation and pretrained model helpful, please consider c
   year={2022},
 }
 ```
+
+
+### at resize transform, create target['size'] (h, w)
+
+### todo
+
+- [ ] mkae synchro test like https://github.com/csm-kr/detr_pytorch/blob/master/test.py
