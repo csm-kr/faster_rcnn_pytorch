@@ -11,14 +11,26 @@ def train_one_epoch(opts, epoch, device, vis, train_loader, model, criterion, op
 
     for idx, data in enumerate(tqdm(train_loader)):
 
+        # print(data[1])
+
+        if idx == 39:
+            print(idx)
+
         images = data[0]
-        boxes = data[1]
-        labels = data[2]
+        targets = data[1]
+        # cuda
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        boxes = targets[0]['boxes']
+        labels = targets[0]['labels']
+
+        # images = data[0]
+        # boxes = data[1]
+        # labels = data[2]
 
         # cuda
-        images = images.to(device)
-        boxes = [b.to(device) for b in boxes]
-        labels = [l.to(device) for l in labels]
+        # images = images.to(device)
+        # boxes = [b.to(device) for b in boxes]
+        # labels = [l.to(device) for l in labels]
 
         # forward and loss
         pred, target = model(images, boxes, labels)   # [cls, reg] - [B, 18, H', W'], [B, 36, H', W']
