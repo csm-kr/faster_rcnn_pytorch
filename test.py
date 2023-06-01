@@ -28,13 +28,22 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
     for idx, data in enumerate(tqdm(test_loader)):
 
         images = data[0]
-        boxes = data[1]
-        labels = data[2]
+        targets = data[1]
 
-        # 2. load data to device
+        # cuda
         images = images.to(device)
-        boxes = [b.to(device) for b in boxes]
-        labels = [l.to(device) for l in labels]
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        boxes = targets[0]['boxes']
+        labels = targets[0]['labels']
+
+        # images = data[0]
+        # boxes = data[1]
+        # labels = data[2]
+        #
+        # # 2. load data to device
+        # images = images.to(device)
+        # boxes = [b.to(device) for b in boxes]
+        # labels = [l.to(device) for l in labels]
 
         # 3. forward(predict)
         pred_bboxes, pred_labels, pred_scores = model.module.predict(images, opts)
@@ -45,10 +54,17 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
             info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
 
         elif opts.data_type == 'coco':
+            # -- old dataset's version --
+            # img_id = test_loader.dataset.img_id[idx]
+            # img_info = test_loader.dataset.coco.loadImgs(ids=img_id)[0]
+            # coco_ids = test_loader.dataset.coco_ids
+            # info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
 
-            img_id = test_loader.dataset.img_id[idx]
-            img_info = test_loader.dataset.coco.loadImgs(ids=img_id)[0]
-            coco_ids = test_loader.dataset.coco_ids
+            # -- new dataset's version --
+            img_id = targets[0]['image_id']
+            h, w = targets[0]['size']
+            img_info = {'height': h.item(), 'width': w.item()}
+            coco_ids = test_loader.dataset.coco.getCatIds()
             info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
 
         # 4. get info for evaluation
