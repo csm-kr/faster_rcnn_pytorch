@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import new_datasets.transforms as T
 from torch.utils.data import DataLoader
 from matplotlib.patches import Rectangle
-from coco_utils import ConvertCocoPolysToMask
+from new_datasets.coco_utils import ConvertCocoPolysToMask
 from util.label_info import coco_color_array, coco_label_list
 
 

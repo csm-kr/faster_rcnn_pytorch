@@ -185,7 +185,7 @@ class RPNTargetMaker(nn.Module):
 
     def forward(self, bbox, anchor):
         # 1. anchor cross boundary 만 걸러내기
-        bbox = bbox[0]  # remove the list for batch : shape [num_obj, 4]
+        # bbox = bbox[0]  # remove the list for batch : shape [num_obj, 4]
         anchor_keep = ((anchor[:, 0] >= 0) & (anchor[:, 1] >= 0) & (anchor[:, 2] <= 1) & (anchor[:, 3] <= 1))
         anchor = anchor[anchor_keep]
         num_anchors = anchor.size(0)

@@ -263,7 +263,7 @@ class Normalize(object):
         if target is None:
             return image, None
 
-        # FIXME : x1y1x2y2 zero2wh boxes to cxcywh zero21 boxes
+        # # FIXME : x1y1x2y2 zero2wh boxes to cxcywh zero21 boxes
         # target = target.copy()
         # h, w = image.shape[-2:]
         # if "boxes" in target:
@@ -271,6 +271,13 @@ class Normalize(object):
         #     boxes = box_xyxy_to_cxcywh(boxes)
         #     boxes = boxes / torch.tensor([w, h, w, h], dtype=torch.float32)
         #     target["boxes"] = boxes
+
+        target = target.copy()
+        h, w = image.shape[-2:]
+        if "boxes" in target:
+            boxes = target["boxes"]
+            boxes = boxes / torch.tensor([w, h, w, h], dtype=torch.float32)
+            target["boxes"] = boxes
         return image, target
 
 

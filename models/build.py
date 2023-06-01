@@ -1,6 +1,6 @@
 import torch
-from models.model import FRCNN
-# from models.new_model import FRCNN
+# from models.model import FRCNN
+from models.new_model import FRCNN
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 

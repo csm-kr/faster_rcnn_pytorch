@@ -7,7 +7,8 @@ import configargparse
 from config import get_args_parser
 
 # dataset / model / loss
-from datasets.build import build_dataloader
+# from datasets.build import build_dataloader
+from new_datasets.build import build_dataloader
 from models.build import build_model
 from losses.build import build_loss
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
@@ -42,6 +43,8 @@ def main_worker(rank, opts):
     # vis = None
 
     # 4. data(set/loader)
+    # seed = 0
+    # torch.manual_seed(seed)
     train_loader, test_loader = build_dataloader(opts)
 
     # 5. model

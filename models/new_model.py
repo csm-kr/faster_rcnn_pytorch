@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 from utils.util import xy_to_cxcy, cxcy_to_xy, encode, decode, find_jaccard_overlap
+from util.box_ops import box_iou
 
 # torchvision
 import torchvision
@@ -153,26 +154,22 @@ class FRCNNTargetMaker(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, bbox, label, rois):
-        # 1. concatenate bbox and roi -
-        # remove the list for batch
-        bbox = bbox[0]
-        label = label[0]
+    def forward(self, boxes, labels, rois):
+        # 1. concatenate bbox and roi
+        # 무조건 나오는 roi를 만들기 위해서 와 boxes 와 concat 한다.
+        rois = torch.cat([rois, boxes], dim=0)
 
-        # 무조건 나오는 roi를 만들기 위해서 와 bbox를 concat 한다.
-        rois = torch.cat([rois, bbox], dim=0)
-        # print(rois.size())
-        iou = find_jaccard_overlap(rois, bbox)  # [2000 + num_obj, num objects]
-        IoU_max, IoU_argmax = iou.max(dim=1)
+        iou, _ = box_iou(boxes, rois)  # [2000 + num_obj, num objects]
+        IoU_max, IoU_argmax = iou.max(dim=0)
 
-        # set background label 0
-        fast_rcnn_tg_cls = label[IoU_argmax] + 1
+        # set background labels 0
+        fast_rcnn_tg_cls = labels[IoU_argmax]
 
         # n_pos = 32 or IoU 0.5 이상
         n_pos = int(min((IoU_max >= 0.5).sum(), 128))
 
         # random select pos and neg indices
-        device = bbox.get_device()
+        device = boxes.get_device()
         pos_index = torch.arange(IoU_max.size(0), device=device)[IoU_max >= 0.5]
         perm = torch.randperm(pos_index.size(0))
         pos_index = pos_index[perm[:n_pos]]
@@ -192,14 +189,14 @@ class FRCNNTargetMaker(nn.Module):
 
         # make CLS target
         fast_rcnn_tg_cls = fast_rcnn_tg_cls[keep_index]
-        # set negative indices background label
+        # set negative indices background labels
         fast_rcnn_tg_cls[n_pos:] = 0
         fast_rcnn_tg_cls = fast_rcnn_tg_cls.type(torch.long)
 
         # make roi
         sample_rois = rois[keep_index, :]
         # make REG target
-        fast_rcnn_tg_reg = encode(xy_to_cxcy(bbox[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
+        fast_rcnn_tg_reg = encode(xy_to_cxcy(boxes[IoU_argmax][keep_index]), xy_to_cxcy(sample_rois))
 
         # normalization bbox
         mean = torch.FloatTensor([0., 0., 0., 0.]).to(device)
@@ -303,53 +300,31 @@ class RPNTargetMaker(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, bbox, anchor):
+    def forward(self, boxes, anchors):
 
-        # 1. anchor cross boundary 만 걸러내기
-        bbox = bbox[0]  # remove the list for batch : shape [num_obj, 4]
-        anchor_keep = ((anchor[:, 0] >= 0) & (anchor[:, 1] >= 0) & (anchor[:, 2] <= 1) & (anchor[:, 3] <= 1))
-        anchor = anchor[anchor_keep]
-        num_anchors = anchor.size(0)
-
-        # 2. iou 따라 label 만들기
-        # if label is 1 (positive), 0 (negative), -1 (ignore)
-        device = bbox.get_device()
+        device = boxes.get_device()
+        num_anchors = anchors.size(0)
         label = -1 * torch.ones(num_anchors, dtype=torch.float32, device=device)
 
-        iou = find_jaccard_overlap(anchor, bbox)  # [num anchors, num objects]
-        IoU_max, IoU_argmax = iou.max(dim=1)
+        iou, _ = box_iou(boxes, anchors)  # [num objects, num anchors]
+        IoU_max, IoU_argmax = iou.max(dim=0)
 
         # 2-1. set negative label
         label[IoU_max < 0.3] = 0
 
-        # 2-2. set positive label that have highest iou.
-        _, IoU_argmax_per_object = iou.max(dim=0)
+        # 2-2. set positive label that have highest iou including ties. (allow_low_quality)
+        IoU_max_per_object, _ = iou.max(dim=1)
+        _, IoU_max_per_object_indices = torch.where(iou == IoU_max_per_object[:, None])
+        label[IoU_max_per_object_indices] = 1
 
-        # FIXME
-        # ** max 값이 여러개 있다면(동일하게), 그것을 가져오는 부분.   **
-        # IoU_argmax_per_object update (max 값 포함하는 index 찾기)
-
-        # 검증
-        # print((iou == IoU_max_per_object).sum() == iou.size(1))
-        # print((iou == IoU_max_per_object).sum())
-        # print(iou.size(1))
-
-        # ** 2020/08/17 n_neg = 0 인 error -> 무시 **
-        # IoU_argmax_per_object = torch.nonzero(input=(iou == IoU_max_per_object))[:, 0]  # 2차원이라 앞의 column 가져오기
-        # FIXME
-
-        label[IoU_argmax_per_object] = 1
         # 2-3. set positive label
         label[IoU_max >= 0.7] = 1
+
         # 2-4 sample target
         n_pos = (label == 1).sum()
         n_neg = (label == 0).sum()
 
-        # print(n_pos)
-        # print(n_neg)
-
-        # num_pos = min(positive.numel(), num_pos)
-
+        # sample batches
         if n_pos > 128:
 
             pos_indices = torch.arange(label.size(0), device=device)[label == 1]
@@ -369,20 +344,22 @@ class RPNTargetMaker(nn.Module):
             print('less than 200 addition? pos : {} vs neg : {}'.format((label == 1).sum(), (label == 0).sum()))
 
         # 3. bbox encoding
-        tg_cxywh = encode(xy_to_cxcy(bbox[IoU_argmax]), xy_to_cxcy(anchor))
+        tg_cxywh = encode(xy_to_cxcy(boxes[IoU_argmax]), xy_to_cxcy(anchors))
 
-        # 4. pad label and bbox for ignore label
-        pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=device)
-        keep_indices = torch.arange(len(anchor_keep), device=device)[anchor_keep]
-        pad_label[keep_indices] = label
-        rpn_tg_cls = pad_label.type(torch.long)
+        return label.type(torch.long), tg_cxywh
 
-        pad_bbox = torch.zeros([len(anchor_keep), 4], dtype=torch.float32, device=device)
-        pad_bbox[keep_indices] = tg_cxywh
-        rpn_tg_reg = pad_bbox
-
-        # The size of rpn_tg_cls / rpn_tg_reg : [16650] / [16650, 4]
-        return rpn_tg_cls, rpn_tg_reg
+        # # 4. pad label and bbox for ignore label
+        # pad_label = -1 * torch.ones(len(anchor_keep), dtype=torch.float32, device=device)
+        # keep_indices = torch.arange(len(anchor_keep), device=device)[anchor_keep]
+        # pad_label[keep_indices] = label
+        # rpn_tg_cls = pad_label.type(torch.long)
+        #
+        # pad_bbox = torch.zeros([len(anchor_keep), 4], dtype=torch.float32, device=device)
+        # pad_bbox[keep_indices] = tg_cxywh
+        # rpn_tg_reg = pad_bbox
+        #
+        # # The size of rpn_tg_cls / rpn_tg_reg : [16650] / [16650, 4]
+        # return rpn_tg_cls, rpn_tg_reg
 
 
 class FRCNN(nn.Module):
@@ -411,22 +388,22 @@ class FRCNN(nn.Module):
     def count_parameters(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def forward(self, x, bbox, label):
+    def forward(self, x, boxes, labels):
 
         # 1. extract features
         features = self.backbone(x)    # dict
 
         # 2. forward rpn
-        pred_rpn_cls, pred_rpn_reg, rois, anchor = self.rpn(x, features, 'train')
+        pred_rpn_cls, pred_rpn_reg, rois, anchors = self.rpn(x, features, 'train')
         # print("rois", rois.shape)
 
         # 3. make target for rpn
-        target_rpn_cls, target_rpn_reg = self.rpn_target_maker(bbox=bbox,
-                                                               anchor=anchor)
+        target_rpn_cls, target_rpn_reg = self.rpn_target_maker(boxes=boxes,
+                                                               anchors=anchors)
 
         # 4. make target for fast rcnn
-        target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.frcnn_target_maker(bbox=bbox,
-                                                                                          label=label,
+        target_fast_rcnn_cls, target_fast_rcnn_reg, sample_rois = self.frcnn_target_maker(boxes=boxes,
+                                                                                          labels=labels,
                                                                                           rois=rois)
         # print(sample_rois.shape)
         # 5. forward fast rcnn head
