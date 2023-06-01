@@ -11,11 +11,6 @@ def train_one_epoch(opts, epoch, device, vis, train_loader, model, criterion, op
 
     for idx, data in enumerate(tqdm(train_loader)):
 
-        # print(data[1])
-
-        if idx == 39:
-            print(idx)
-
         images = data[0]
         targets = data[1]
         # cuda
