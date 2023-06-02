@@ -80,15 +80,15 @@ def main_worker(rank, opts):
     for epoch in range(opts.start_epoch, opts.epoch):
 
         # 11. train one epoch
-        train_one_epoch(opts=opts,
-                        epoch=epoch,
-                        device=device,
-                        vis=vis,
-                        train_loader=train_loader,
-                        model=model,
-                        criterion=criterion,
-                        optimizer=optimizer,
-                        scheduler=scheduler)
+        # train_one_epoch(opts=opts,
+        #                 epoch=epoch,
+        #                 device=device,
+        #                 vis=vis,
+        #                 train_loader=train_loader,
+        #                 model=model,
+        #                 criterion=criterion,
+        #                 optimizer=optimizer,
+        #                 scheduler=scheduler)
 
         # 12. test and evaluation
         test_and_eval(opts=opts,
@@ -99,7 +99,7 @@ def main_worker(rank, opts):
                       model=model,
                       xl_log_saver=xl_log_saver,
                       result_best=result_best,
-                      is_load=False)
+                      is_load=True)
 
         scheduler.step()
 

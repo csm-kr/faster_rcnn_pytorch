@@ -462,6 +462,11 @@ class FRCNN(nn.Module):
         bbox = np.concatenate(bbox, axis=0).astype(np.float32)
         label = np.concatenate(label, axis=0).astype(np.int32)
         score = np.concatenate(score, axis=0).astype(np.float32)
+
+        bbox = torch.from_numpy(bbox)
+        label = torch.from_numpy(label)
+        score = torch.from_numpy(score)
+
         return bbox, label, score
 
 

@@ -411,9 +411,15 @@ class FRCNN(nn.Module):
             label.append((l - 1) * np.ones((len(keep),)))
             score.append(prob_l[keep].cpu().numpy())
 
-        bbox = np.concatenate(bbox, axis=0).astype(np.float32)
-        label = np.concatenate(label, axis=0).astype(np.int32)
-        score = np.concatenate(score, axis=0).astype(np.float32)
+        # numpy version
+        # bbox = np.concatenate(bbox, axis=0).astype(np.float32)
+        # label = np.concatenate(label, axis=0).astype(np.int32)
+        # score = np.concatenate(score, axis=0).astype(np.float32)
+
+        bbox = torch.cat(bbox, dim=0).type(np.float32)
+        label = torch.cat(label, dim=0).type(np.int32)
+        score = torch.cat(score, dim=0).type(np.float32)
+
         return bbox, label, score
 
 
