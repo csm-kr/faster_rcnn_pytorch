@@ -50,13 +50,14 @@ class Evaluator(object):
             pred_boxes[:, 3] *= h
 
             for pred_box, pred_label, pred_score in zip(pred_boxes, pred_labels, pred_scores):
-                if int(pred_label) == 80:  # background label is 80
+                if int(pred_label) == 0:  # background label is 80
                     print('background label :', int(pred_label))
                     continue
 
                 coco_result = {
                     'image_id': img_id,
-                    'category_id': coco_ids[int(pred_label)],
+                    # 'category_id': coco_ids[int(pred_label)],
+                    'category_id': int(pred_label),
                     'score': float(pred_score),
                     'bbox': pred_box.tolist(),
                 }
