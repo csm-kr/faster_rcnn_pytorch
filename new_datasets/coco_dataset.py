@@ -119,7 +119,8 @@ class COCODatasetV1(torchvision.datasets.CocoDetection):
 
 if __name__ == '__main__':
     # root, image_set, transforms
-    root = "D:\data\\coco"
+    # root = "D:\data\\coco"
+    root = "/home/cvmlserver7/Sungmin/data/coco"
     image_set = "train"
 
     img_folder = os.path.join(root, f'{image_set}2017')

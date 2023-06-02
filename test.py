@@ -2,17 +2,27 @@ import os
 import time
 import torch
 from tqdm import tqdm
+import numpy as np
 from evaluation.evaluator import Evaluator
+from evaluation.coco_eval import CocoEvaluator
+from util.box_ops import box_cxcywh_to_xyxy
+from utils.util import cxcy_to_xy
 
 
 @ torch.no_grad()
 def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=None, result_best=None, is_load=False):
 
+    ### new evaluation
+    iou_types = tuple(['bbox'])  # 'bbox'
+    # coco_evaluator = CocoEvaluator(base_ds, iou_types)
+    coco_evaluator = CocoEvaluator(test_loader.dataset.coco, iou_types)
+    ###
+
     # 0. evaluator
-    evaluator = Evaluator(data_type=opts.data_type)  # opts.data_type : voc or coco
+    # evaluator = Evaluator(data_type=opts.data_type)  # opts.data_type : voc or coco
 
     # 1. device
-    # device = torch.device(f'cuda:{int(opts.gpu_ids[opts.rank])}')
+    device = torch.device(f'cuda:{int(opts.gpu_ids[opts.rank])}')
 
     # 2. load pth
     checkpoint = None
@@ -46,29 +56,58 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
         # labels = [l.to(device) for l in labels]
 
         # 3. forward(predict)
-        pred_bboxes, pred_labels, pred_scores = model.module.predict(images, opts)
+        # pred_bboxes, pred_labels, pred_scores = model.module.predict(images, opts)
+        boxes, labels, scores = model.module.predict(images, opts)
 
-        if opts.data_type == 'voc':
+        # print(boxes.size())
+        # print(labels.size())
+        # print(scores.size())
 
-            info = data[3][0]  # [{}]
-            info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
+        # cxcy2xyxy
+        # boxes = box_cxcywh_to_xyxy(boxes)
+        boxes = cxcy_to_xy(boxes).to(device)
+        h, w = targets[0]['size']
+        scale_fct = torch.stack([w, h, w, h], dim=0).to(device)
+        boxes = boxes * scale_fct[None, :]
 
-        elif opts.data_type == 'coco':
-            # -- old dataset's version --
-            # img_id = test_loader.dataset.img_id[idx]
-            # img_info = test_loader.dataset.coco.loadImgs(ids=img_id)[0]
-            # coco_ids = test_loader.dataset.coco_ids
-            # info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
+        # size 1, 100, 4
+        boxes = boxes.unsqueeze(0)
+        labels = labels.unsqueeze(0)
+        scores = scores.unsqueeze(0)
 
-            # -- new dataset's version --
-            img_id = targets[0]['image_id']
-            h, w = targets[0]['size']
-            img_info = {'height': h.item(), 'width': w.item()}
-            coco_ids = test_loader.dataset.coco.getCatIds()
-            info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
+        # print(boxes)
+        # print(labels)
+        # print(scores)
+        # 다음 코드를 통과하기 위해서는 batch 로 묶여 있어야 한다.
+        results = [{'scores': s, 'labels': l, 'boxes': b} for s, l, b in zip(scores, labels, boxes)]
+        print(results)
+
+        res = {i['image_id'].item(): output for i, output in zip(targets, results)}
+        print(res)
+        if coco_evaluator is not None:
+            coco_evaluator.update(res)
+
+        # if opts.data_type == 'voc':
+        #
+        #     info = data[3][0]  # [{}]
+        #     info = (pred_bboxes, pred_labels, pred_scores, info['name'], info['original_wh'])
+        #
+        # elif opts.data_type == 'coco':
+        #     # -- old dataset's version --
+        #     # img_id = test_loader.dataset.img_id[idx]
+        #     # img_info = test_loader.dataset.coco.loadImgs(ids=img_id)[0]
+        #     # coco_ids = test_loader.dataset.coco_ids
+        #     # info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
+        #
+        #     # -- new dataset's version --
+        #     img_id = targets[0]['image_id']
+        #     h, w = targets[0]['size']
+        #     img_info = {'height': h.item(), 'width': w.item()}
+        #     coco_ids = test_loader.dataset.coco.getCatIds()
+        #     info = (pred_bboxes, pred_labels, pred_scores, img_id, img_info, coco_ids)
 
         # 4. get info for evaluation
-        evaluator.get_info(info)
+        # evaluator.get_info(info)
 
         # 5. print log
         toc = time.time()
@@ -82,8 +121,21 @@ def test_and_eval(opts, epoch, device, vis, test_loader, model, xl_log_saver=Non
                           time=toc - tic))
 
     # calculate mAP
-    mAP = evaluator.evaluate(test_loader.dataset)
-    print(mAP)
+    coco_evaluator.synchronize_between_processes()
+    coco_evaluator.accumulate()
+    coco_evaluator.summarize()
+
+    stats = coco_evaluator.coco_eval['bbox'].stats.tolist()
+    mAP = stats[0]
+    mean_loss = np.array(sum_loss).mean()
+
+    print("mAP : ", mAP)
+    print("mean Loss : ", mean_loss)
+    print("Eval Time : {:.4f}".format(time.time() - tic))
+
+    # if opts.rank == 0:
+    #     mAP = evaluator.evaluate(test_loader.dataset)
+    #     print(mAP)
 
     if vis is not None:
         # loss plot

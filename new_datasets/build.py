@@ -55,12 +55,12 @@ def build_dataloader(opts):
                                   num_workers=opts.num_workers,
                                   pin_memory=True)
 
-        # train_loader = DataLoader(train_set,
-        #                           batch_size=opts.batch_size,
-        #                           collate_fn=train_set.collate_fn,
-        #                           # shuffle=True,
-        #                           num_workers=opts.num_workers,
-        #                           pin_memory=True)
+        test_loader = DataLoader(test_set,
+                                 batch_size=1,
+                                 collate_fn=test_set.collate_fn,
+                                 shuffle=False,
+                                 num_workers=int(opts.num_workers / opts.world_size),
+                                 pin_memory=True)
 
         if opts.distributed:
             train_loader = DataLoader(train_set,
@@ -73,7 +73,7 @@ def build_dataloader(opts):
                                       drop_last=False)
 
             test_loader = DataLoader(test_set,
-                                     batch_size=1,
+                                     batch_size=int(opts.batch_size / opts.world_size),
                                      collate_fn=test_set.collate_fn,
                                      shuffle=False,
                                      num_workers=int(opts.num_workers / opts.world_size),

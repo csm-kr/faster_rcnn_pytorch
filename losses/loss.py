@@ -31,7 +31,7 @@ class RPNLoss(nn.Module):
 
         rpn_cls_loss = self.cross_entropy_loss(pred_cls.squeeze(0), target_cls)
         rpn_reg_loss = self.smooth_l1_loss(pred_reg.squeeze(0)[target_cls > 0], target_reg[target_cls > 0])
-        
+
         # # FIXME : follow the paper
         # N_reg = target_cls.size(0) // 9
         # rpn_reg_loss = self.rpn_lambda * (rpn_reg_loss.sum() / N_reg)
