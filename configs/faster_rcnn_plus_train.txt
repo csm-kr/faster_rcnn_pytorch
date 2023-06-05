@@ -1,0 +1,15 @@
+## name
+name = faster_rcnn_plus
+
+## visdom
+visdom_port = 8097
+
+## data
+data_root = D:\data\coco
+data_type = coco
+
+## training
+## testing
+## demo
+## distributed
+gpu_ids = 0
